@@ -15,7 +15,7 @@ instance Compilable Stmt where
   compile (Expr expr)                 = undefined
 
 instance Compilable Expr where
-  compile (Set var expr)       = undefined
+  compile (Set var expr)       = compile expr ++ [Store var]
   compile (FuncCall func args) = undefined
   compile (Var var)            = undefined
   compile (IntLit int)         = undefined
