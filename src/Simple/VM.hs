@@ -44,6 +44,12 @@ type Vars = M.Map String Value
 type Memory = (Stack, Vars)
 
 instance NFData Instruction where
+  rnf (Const v) = rnf v
+  rnf a         = a `seq` ()
+
+instance NFData Value where
+  rnf (Code c) = rnf c
+  rnf a        = a `seq` ()
 
 repr :: Value -> String
 repr (B True)  = "true"
