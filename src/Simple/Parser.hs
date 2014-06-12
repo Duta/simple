@@ -60,6 +60,7 @@ reserved      = Token.reserved      lexer
 reservedOp    = Token.reservedOp    lexer
 parens        = Token.parens        lexer
 braces        = Token.braces        lexer
+commaSep      = Token.commaSep      lexer
 integer       = Token.integer       lexer
 stringLiteral = Token.stringLiteral lexer
 semi          = Token.semi          lexer
@@ -143,7 +144,10 @@ assignment :: Parser Expr
 assignment = fail "assignment is not implemented"
 
 functionCall :: Parser Expr
-functionCall = fail "function calls are not implemented"
+functionCall = do
+  func <- identifier
+  args <- parens $ commaSep expression
+  return $ FuncCall func args
 
 boolean :: Parser Bool
 boolean = (reserved "true"  >> return True)
