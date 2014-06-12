@@ -78,7 +78,7 @@ simpleParser = do
 statement :: Parser Stmt
 statement = parens statement
         <|> whileStatement
-        <|> ifElseStatement
+        <|> try ifElseStatement
         <|> ifStatement
         <|> initStatement
         <|> basicStatement
@@ -152,8 +152,8 @@ operators =
 
 terminals :: Parser Expr
 terminals = parens expression
-        <|> assignment
-        <|> functionCall
+        <|> try functionCall
+        <|> try assignment
         <|> liftM Var identifier
         <|> liftM (IntLit . fromIntegral) integer
         <|> liftM BoolLit boolean
