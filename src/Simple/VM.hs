@@ -6,6 +6,7 @@ import qualified Data.Map as M
 data Value
   = B Bool
   | I Int
+  | Code Bytecode
   deriving (Show, Eq)
 
 data Instruction
@@ -30,6 +31,8 @@ data Instruction
   | Or
   | Flip
   | Print
+  | If
+  | While
   | Store String
   | Load String
   deriving (Show, Eq)
@@ -43,6 +46,7 @@ repr :: Value -> String
 repr (B True)  = "true"
 repr (B False) = "false"
 repr (I n)     = show n
+repr (Code _)  = typeError
 
 vmError :: String -> a
 vmError = error . ("Runtime Error: "++)
@@ -58,23 +62,29 @@ undefVarError = vmError . ("Attempted to access undefined variable " ++)
 
 unOpInt :: Memory -> (Int -> Value) -> IO Memory
 unOpInt (I a:s, v) op = return (op a:s, v)
-unOpInt (_:s, v)   op = typeError
+unOpInt (_:_, _)   op = typeError
 unOpInt _          op = stackUnderflowError
 
 unOpBool :: Memory -> (Bool -> Value) -> IO Memory
 unOpBool (B a:s, v) op = return (op a:s, v)
-unOpBool (_:s, v)   op = typeError
+unOpBool (_:_, _)   op = typeError
 unOpBool _          op = stackUnderflowError
 
 binOpInt :: Memory -> (Int -> Int -> Value) -> IO Memory
 binOpInt (I b:I a:s, v) op = return (a `op` b:s, v)
-binOpInt (_:_:s, v)     op = typeError
+binOpInt (_:_:_, _)     op = typeError
 binOpInt _              op = stackUnderflowError
 
 binOpBool :: Memory -> (Bool -> Bool -> Value) -> IO Memory
 binOpBool (B b:B a:s, v) op = return (a `op` b:s, v)
-binOpBool (_:_:s, v)     op = typeError
+binOpBool (_:_:_, _)     op = typeError
 binOpBool _              op = stackUnderflowError
+
+exeIf :: Memory -> IO Memory
+exeIf (B b:Code c2:Code c1:s, v) = exeCode m (if b then c1 else c2) >> return m
+  where m = (s, v)
+exeIf (_:_:_, _)                 = typeError
+exeIf _                          = stackUnderflowError
 
 exeIns :: Memory -> Instruction -> IO Memory
 exeIns (s, v)     (Const n)  = return (n:s, v)
@@ -100,6 +110,7 @@ exeIns (b:a:s, v) Flip       = return (a:b:s, v)
 exeIns _          Flip       = stackUnderflowError
 exeIns (n:s, v)   Print      = putStr (repr n) >> return (s, v)
 exeIns _          Print      = stackUnderflowError
+exeIns m          If         = exeIf m
 exeIns (n:s, v)   (Store i)  = return (s, M.insert i n v)
 exeIns _          (Store i)  = stackUnderflowError
 exeIns (s, v)     (Load i)   = case M.lookup i v of

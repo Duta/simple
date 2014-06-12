@@ -8,15 +8,15 @@ class Compilable a where
 
 instance Compilable Stmt where
   compile (Seq stmts)                 = concatMap compile stmts
-  compile (While cond stmts)          = undefined
-  compile (IfElse cond stmts1 stmts2) = undefined
-  compile (If cond stmts)             = undefined
+  compile (AST.While cond stmts)      = undefined
+  compile (IfElse cond stmts1 stmts2) = compile stmts1 ++ compile stmts2 ++ compile cond
+  compile (AST.If cond stmts)         = compile $ IfElse cond stmts (Seq [])
   compile (Init varType var expr)     = compile $ Set var expr
   compile (Expr expr)                 = compile expr ++ [ClearStack]
 
 instance Compilable Expr where
   compile (Set var expr)       = compile expr ++ [Store var]
-  compile (FuncCall func args) = undefined
+  compile (FuncCall func args) = if func == "print" then [Print] else error $ "Unknown function " ++ func
   compile (Var var)            = [Load var]
   compile (IntLit int)         = [Const $ I int]
   compile (BoolLit bool)       = [Const $ B bool]
