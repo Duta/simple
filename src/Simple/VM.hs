@@ -7,7 +7,7 @@ data Value
   = B Bool
   | I Int
   | Code Bytecode
-    deriving (Show, Eq)
+    deriving (Show, Eq, Read)
 
 data Instruction
   = Const Value
@@ -35,7 +35,7 @@ data Instruction
   | While
   | Store String
   | Load String
-    deriving (Show, Eq)
+    deriving (Show, Eq, Read)
 
 type Bytecode = [Instruction]
 type Stack = [Value]
