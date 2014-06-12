@@ -110,6 +110,7 @@ initStatement :: Parser Stmt
 initStatement = do
   varType <- typeName
   Set var expr <- assignment
+  semi
   return $ Init varType var expr
 
 basicStatement :: Parser Stmt
