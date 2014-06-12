@@ -1,13 +1,13 @@
 module Simple.VM where
 
-import           Control.Monad (foldM)
+import           Control.Monad (foldM, void)
 import qualified Data.Map as M
 
 data Value
   = B Bool
   | I Int
   | Code Bytecode
-  deriving (Show, Eq)
+    deriving (Show, Eq)
 
 data Instruction
   = Const Value
@@ -35,7 +35,7 @@ data Instruction
   | While
   | Store String
   | Load String
-  deriving (Show, Eq)
+    deriving (Show, Eq)
 
 type Bytecode = [Instruction]
 type Stack = [Value]
@@ -86,12 +86,16 @@ exeIf (_:_:_, _)                 = typeError
 exeIf _                          = stackUnderflowError
 
 exeWhile :: Memory -> IO Memory
-exeWhile (B b:Code c:s, v) = if b
-    then exeCode m c >>= (\(s', v') -> exeWhile (B b:Code c:s', v'))
-    else return m
-  where m = (s, v)
-exeWhile (_:_, _)          = typeError
-exeWhile _                 = stackUnderflowError
+exeWhile (Code e:Code c:s, v) = do
+  m' <- exeCode ([], v) e
+  case m' of
+    ([B b], v') -> if b
+      then exeCode (s, v') c >>= (\(s', v'') -> exeWhile (Code e:Code c:s', v''))
+      else return (s, v')
+    (_:_, _)    -> typeError
+    _           -> stackUnderflowError
+exeWhile (_:_, _)             = typeError
+exeWhile _                    = stackUnderflowError
 
 exeIns :: Memory -> Instruction -> IO Memory
 exeIns (s, v)     (Const n)  = return (n:s, v)
@@ -115,7 +119,7 @@ exeIns m          And        = binOpBool m $ \a b -> B (a && b)
 exeIns m          Or         = binOpBool m $ \a b -> B (a || b)
 exeIns (b:a:s, v) Flip       = return (a:b:s, v)
 exeIns _          Flip       = stackUnderflowError
-exeIns (n:s, v)   Print      = putStr (repr n) >> return (s, v)
+exeIns (n:s, v)   Print      = putStrLn (repr n) >> return (s, v)
 exeIns _          Print      = stackUnderflowError
 exeIns m          If         = exeIf m
 exeIns m          While      = exeWhile m
@@ -130,6 +134,9 @@ exeCode = foldM exeIns
 
 initialMem :: Memory
 initialMem = ([], M.empty)
+
+execute :: Bytecode -> IO ()
+execute = void . exeCode initialMem
 
 -- Takes two variable names and swaps their values.
 swap :: String -> String -> Bytecode
