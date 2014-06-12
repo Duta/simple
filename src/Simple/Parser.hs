@@ -82,11 +82,15 @@ statement = parens statement
         <|> ifStatement
         <|> initStatement
         <|> basicStatement
-        <|> braces statements
+        <|> bracedStatements
         <?> "statement"
 
 whileStatement :: Parser Stmt
-whileStatement = fail "while statements are not implemented"
+whileStatement = do
+  reserved "while"
+  cond <- expression
+  stmts <- bracedStatements
+  return $ While cond stmts
 
 ifElseStatement :: Parser Stmt
 ifElseStatement = fail "if-else statements are not implemented"
@@ -105,6 +109,9 @@ basicStatement = do
   expr <- expression
   semi
   return $ Expr expr
+
+bracedStatements :: Parser Stmt
+bracedStatements = braces statements
 
 statements :: Parser Stmt
 statements = liftM Seq $ many statement
