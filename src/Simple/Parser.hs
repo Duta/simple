@@ -95,7 +95,10 @@ ifStatement :: Parser Stmt
 ifStatement = fail "if statements are not implemented"
 
 initStatement :: Parser Stmt
-initStatement = fail "initialization statements are not implemented"
+initStatement = do
+  varType <- typeName
+  Set var expr <- assignment
+  return $ Init varType var expr
 
 basicStatement :: Parser Stmt
 basicStatement = do
@@ -143,6 +146,7 @@ terminals = parens expression
 assignment :: Parser Expr
 assignment = do
   var <- identifier
+  reservedOp ":="
   expr <- expression
   return $ Set var expr
 
@@ -151,6 +155,11 @@ functionCall = do
   func <- identifier
   args <- parens $ commaSep expression
   return $ FuncCall func args
+
+typeName :: Parser Type
+typeName = (reserved "int"  >> return Int)
+       <|> (reserved "bool" >> return Bool)
+       <?> "type name"
 
 boolean :: Parser Bool
 boolean = (reserved "true"  >> return True)
