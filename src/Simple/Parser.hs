@@ -37,6 +37,8 @@ languageDef = javaStyle
     , "%"   -- Modulus
     , "^"   -- Exponentiation
     , "|"   -- 'Divides'
+    , "++"  -- Pre/post-increment
+    , "--"  -- Pre/post-decrement
     -- Relational
     , "="   -- Equality
     , "=/=" -- Inequality
@@ -131,23 +133,27 @@ expression = buildExpressionParser operators terminals
 
 operators :: OperatorTable Char st Expr
 operators =
-  [ [Prefix (reservedOp "-"   >> return (UnaryOp Neg))]
-  , [Prefix (reservedOp "¬"   >> return (UnaryOp Not))]
-  , [Infix  (reservedOp "^"   >> return (BinaryOp Exp))     AssocLeft]
-  , [Infix  (reservedOp "*"   >> return (BinaryOp Mul))     AssocLeft]
-  , [Infix  (reservedOp "/"   >> return (BinaryOp Div))     AssocLeft]
-  , [Infix  (reservedOp "%"   >> return (BinaryOp Mod))     AssocLeft]
-  , [Infix  (reservedOp "|"   >> return (BinaryOp Divides)) AssocLeft]
-  , [Infix  (reservedOp "+"   >> return (BinaryOp Add))     AssocLeft]
-  , [Infix  (reservedOp "-"   >> return (BinaryOp Sub))     AssocLeft]
-  , [Infix  (reservedOp "="   >> return (BinaryOp Eq))      AssocLeft]
-  , [Infix  (reservedOp "=/=" >> return (BinaryOp Ineq))    AssocLeft]
-  , [Infix  (reservedOp "<"   >> return (BinaryOp Lt))      AssocLeft]
-  , [Infix  (reservedOp ">"   >> return (BinaryOp Gt))      AssocLeft]
-  , [Infix  (reservedOp "<="  >> return (BinaryOp LtEq))    AssocLeft]
-  , [Infix  (reservedOp ">="  >> return (BinaryOp GtEq))    AssocLeft]
-  , [Infix  (reservedOp "and" >> return (BinaryOp And))     AssocLeft]
-  , [Infix  (reservedOp "or"  >> return (BinaryOp Or))      AssocLeft]
+  [ [Prefix  (reservedOp "-"   >> return (UnaryOp Neg))]
+  , [Prefix  (reservedOp "¬"   >> return (UnaryOp Not))]
+  , [Prefix  (reservedOp "--"  >> return (UnaryOp PreDec))]
+  , [Postfix (reservedOp "--"  >> return (UnaryOp PostDec))]
+  , [Prefix  (reservedOp "++"  >> return (UnaryOp PreInc))]
+  , [Postfix (reservedOp "++"  >> return (UnaryOp PostInc))]
+  , [Infix   (reservedOp "^"   >> return (BinaryOp Exp))     AssocLeft]
+  , [Infix   (reservedOp "*"   >> return (BinaryOp Mul))     AssocLeft]
+  , [Infix   (reservedOp "/"   >> return (BinaryOp Div))     AssocLeft]
+  , [Infix   (reservedOp "%"   >> return (BinaryOp Mod))     AssocLeft]
+  , [Infix   (reservedOp "|"   >> return (BinaryOp Divides)) AssocLeft]
+  , [Infix   (reservedOp "+"   >> return (BinaryOp Add))     AssocLeft]
+  , [Infix   (reservedOp "-"   >> return (BinaryOp Sub))     AssocLeft]
+  , [Infix   (reservedOp "="   >> return (BinaryOp Eq))      AssocLeft]
+  , [Infix   (reservedOp "=/=" >> return (BinaryOp Ineq))    AssocLeft]
+  , [Infix   (reservedOp "<"   >> return (BinaryOp Lt))      AssocLeft]
+  , [Infix   (reservedOp ">"   >> return (BinaryOp Gt))      AssocLeft]
+  , [Infix   (reservedOp "<="  >> return (BinaryOp LtEq))    AssocLeft]
+  , [Infix   (reservedOp ">="  >> return (BinaryOp GtEq))    AssocLeft]
+  , [Infix   (reservedOp "and" >> return (BinaryOp And))     AssocLeft]
+  , [Infix   (reservedOp "or"  >> return (BinaryOp Or))      AssocLeft]
   ]
 
 terminals :: Parser Expr

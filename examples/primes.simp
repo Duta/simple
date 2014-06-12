@@ -9,13 +9,13 @@ while numPrimes < totalPrimes {
         if currentDivisor | currentNum {
             isPrime := false;
         }
-        currentDivisor := currentDivisor + 1;
+        currentDivisor++;
     }
 
     if isPrime {
-        numPrimes := numPrimes + 1;
+        numPrimes++;
         print(currentNum);
     }
 
-    currentNum := currentNum + 1;
+    currentNum++;
 }

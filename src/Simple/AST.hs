@@ -22,6 +22,10 @@ data Expr
 data UnaryOp
   = Neg
   | Not
+  | PreDec
+  | PostDec
+  | PreInc
+  | PostInc
     deriving (Show, Eq)
 
 data BinaryOp

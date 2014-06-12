@@ -20,19 +20,55 @@ instance Compilable Stmt where
   compile (Expr expr)                 = compile expr ++ [ClearStack]
 
 instance Compilable Expr where
-  compile (Set var expr)       = compile expr ++ [Store var]
-  compile (FuncCall func args) = if func == "print"
+  compile (Set var expr)              = compile expr ++ [Store var]
+  compile (FuncCall func args)        = if func == "print"
     then concatMap compile args ++ [Print]
     else error $ "Unknown function " ++ func
-  compile (Var var)            = [Load var]
-  compile (IntLit int)         = [Const $ I int]
-  compile (BoolLit bool)       = [Const $ B bool]
-  compile (UnaryOp op expr)    = compile expr ++ compile op
-  compile (BinaryOp op e1 e2)  = compile e1 ++ compile e2 ++ compile op
+  compile (Var var)                   = [Load var]
+  compile (IntLit int)                = [Const $ I int]
+  compile (BoolLit bool)              = [Const $ B bool]
+  compile (UnaryOp PreDec (Var var))  =
+    [ Load var
+    , Const (I 1)
+    , VM.Sub
+    , Store var
+    , Load var
+    ]
+  compile (UnaryOp PreDec _)          = incrementVarError True True
+  compile (UnaryOp PostDec (Var var)) =
+    [ Load var
+    , Load var
+    , Const (I 1)
+    , VM.Sub
+    , Store var
+    ]
+  compile (UnaryOp PostDec _)         = incrementVarError False True
+  compile (UnaryOp PreInc (Var var))  =
+    [ Load var
+    , Const (I 1)
+    , VM.Add
+    , Store var
+    , Load var
+    ]
+  compile (UnaryOp PreInc _)          = incrementVarError True False
+  compile (UnaryOp PostInc (Var var)) =
+    [ Load var
+    , Load var
+    , Const (I 1)
+    , VM.Add
+    , Store var
+    ]
+  compile (UnaryOp PostInc _)         = incrementVarError False False
+  compile (UnaryOp op expr)           = compile expr ++ compile op
+  compile (BinaryOp op e1 e2)         = compile e1 ++ compile e2 ++ compile op
 
 instance Compilable UnaryOp where
-  compile AST.Neg = [VM.Neg]
-  compile AST.Not = [VM.Not]
+  compile AST.Neg     = [VM.Neg]
+  compile AST.Not     = [VM.Not]
+  compile AST.PreDec  = incrementVarError True True
+  compile AST.PostDec = incrementVarError False True
+  compile AST.PreInc  = incrementVarError True False
+  compile AST.PostInc = incrementVarError False False
 
 instance Compilable BinaryOp where
   compile AST.Add     = [VM.Add]
@@ -50,3 +86,11 @@ instance Compilable BinaryOp where
   compile AST.GtEq    = [VM.GtEq]
   compile AST.And     = [VM.And]
   compile AST.Or      = [VM.Or]
+
+compileError :: String -> a
+compileError = error . ("Compile Error: "++)
+
+incrementVarError :: Bool -> Bool -> a
+incrementVarError pre dec = compileError $
+  "Can only " ++ (if pre then "pre" else "post") ++ "-" ++
+  (if dec then "dec" else "inc") ++ "rement variables"
