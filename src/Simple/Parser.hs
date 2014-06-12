@@ -55,12 +55,12 @@ languageDef = javaStyle
 lexer :: Token.TokenParser st
 lexer = Token.makeTokenParser languageDef
 
-identifier    = Token.identifier    lexer
 reserved      = Token.reserved      lexer
 reservedOp    = Token.reservedOp    lexer
 parens        = Token.parens        lexer
 braces        = Token.braces        lexer
 commaSep      = Token.commaSep      lexer
+identifier    = Token.identifier    lexer
 integer       = Token.integer       lexer
 stringLiteral = Token.stringLiteral lexer
 semi          = Token.semi          lexer
@@ -141,7 +141,10 @@ terminals = parens expression
         <?> "terminal expression"
 
 assignment :: Parser Expr
-assignment = fail "assignment is not implemented"
+assignment = do
+  var <- identifier
+  expr <- expression
+  return $ Set var expr
 
 functionCall :: Parser Expr
 functionCall = do
