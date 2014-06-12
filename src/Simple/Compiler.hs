@@ -28,4 +28,18 @@ instance Compilable UnaryOp where
   compile AST.Not = [VM.Not]
 
 instance Compilable BinaryOp where
-  compile = undefined
+  compile AST.Add     = [VM.Add]
+  compile AST.Sub     = [VM.Sub]
+  compile AST.Mul     = [VM.Mul]
+  compile AST.Div     = [VM.Div]
+  compile AST.Mod     = [VM.Mod]
+  compile AST.Exp     = [VM.Exp]
+  compile AST.Divides = [VM.Divides]
+  compile AST.Eq      = [VM.Eq]
+  compile AST.Ineq    = [VM.Ineq]
+  compile AST.Lt      = [VM.Lt]
+  compile AST.Gt      = [VM.Gt]
+  compile AST.LtEq    = [VM.LtEq]
+  compile AST.GtEq    = [VM.GtEq]
+  compile AST.And     = [VM.And]
+  compile AST.Or      = [VM.Or]
