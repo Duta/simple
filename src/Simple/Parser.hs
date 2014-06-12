@@ -93,10 +93,18 @@ whileStatement = do
   return $ While cond stmts
 
 ifElseStatement :: Parser Stmt
-ifElseStatement = fail "if-else statements are not implemented"
+ifElseStatement = do
+  If cond stmts1 <- ifStatement
+  reserved "else"
+  stmts2 <- bracedStatements
+  return $ IfElse cond stmts1 stmts2
 
 ifStatement :: Parser Stmt
-ifStatement = fail "if statements are not implemented"
+ifStatement = do
+  reserved "if"
+  cond <- expression
+  stmts <- bracedStatements
+  return $ If cond stmts
 
 initStatement :: Parser Stmt
 initStatement = do
