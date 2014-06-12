@@ -1,0 +1,21 @@
+int totalPrimes := 100;
+int numPrimes := 0;
+int currentNum := 2;
+
+while numPrimes < totalPrimes {
+    bool isPrime := true;
+    int currentDivisor := 2;
+    while currentDivisor < currentNum/2 and isPrime {
+        if currentDivisor | currentNum {
+            isPrime := false;
+        }
+        currentDivisor := currentDivisor + 1;
+    }
+
+    if isPrime {
+        numPrimes := numPrimes + 1;
+        print(currentNum);
+    }
+
+    currentNum := currentNum + 1;
+}
