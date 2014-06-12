@@ -81,8 +81,7 @@ binOpBool (_:_:_, _)     op = typeError
 binOpBool _              op = stackUnderflowError
 
 exeIf :: Memory -> IO Memory
-exeIf (B b:Code c2:Code c1:s, v) = exeCode m (if b then c1 else c2) >> return m
-  where m = (s, v)
+exeIf (B b:Code c2:Code c1:s, v) = exeCode (s, v) (if b then c1 else c2)
 exeIf (_:_:_, _)                 = typeError
 exeIf _                          = stackUnderflowError
 
