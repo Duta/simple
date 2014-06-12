@@ -21,4 +21,10 @@ instance Compilable Expr where
   compile (IntLit int)         = [I int]
   compile (BoolLit bool)       = [B bool]
   compile (UnaryOp op expr)    = compile expr ++ compile op
-  compile (BinaryOp op e1 e2)  = undefined
+  compile (BinaryOp op e1 e2)  = compile e1 ++ compile e2 ++ compile op
+
+instance Compilable UnaryOp where
+  compile = undefined
+
+instance Compilable BinaryOp where
+  compile = undefined
