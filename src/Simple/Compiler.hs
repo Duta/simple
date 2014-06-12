@@ -1,7 +1,7 @@
 module Simple.Compiler where
 
-import           Simple.AST
-import           Simple.VM
+import           Simple.AST as AST
+import           Simple.VM  as VM
 
 class Compilable a where
   compile :: a -> Bytecode
@@ -24,7 +24,8 @@ instance Compilable Expr where
   compile (BinaryOp op e1 e2)  = compile e1 ++ compile e2 ++ compile op
 
 instance Compilable UnaryOp where
-  compile = undefined
+  compile AST.Neg = [VM.Neg]
+  compile AST.Not = [VM.Not]
 
 instance Compilable BinaryOp where
   compile = undefined

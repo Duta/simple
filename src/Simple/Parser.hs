@@ -4,7 +4,7 @@ import           Control.Monad (liftM)
 import           Text.ParserCombinators.Parsec
 import           Text.ParserCombinators.Parsec.Expr
 import           Text.ParserCombinators.Parsec.Language
-import qualified Text.ParserCombinators.Parsec.Token as Token
+import qualified Text.ParserCombinators.Parsec.Token    as Token
 import           Simple.AST
 
 parseFile :: String -> IO Stmt
