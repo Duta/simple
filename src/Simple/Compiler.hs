@@ -20,5 +20,5 @@ instance Compilable Expr where
   compile (Var var)            = [Load var]
   compile (IntLit int)         = [I int]
   compile (BoolLit bool)       = [B bool]
-  compile (UnaryOp op expr)    = undefined
+  compile (UnaryOp op expr)    = compile expr ++ compile op
   compile (BinaryOp op e1 e2)  = undefined
