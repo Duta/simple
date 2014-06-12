@@ -8,7 +8,7 @@ class Compilable a where
 
 instance Compilable Stmt where
   compile (Seq stmts)                 = concatMap compile stmts
-  compile (AST.While cond stmts)      = undefined
+  compile (AST.While cond stmts)      = compile stmts ++ compile cond ++ [VM.While]
   compile (IfElse cond stmts1 stmts2) = compile stmts1 ++ compile stmts2 ++ compile cond
   compile (AST.If cond stmts)         = compile $ IfElse cond stmts (Seq [])
   compile (Init varType var expr)     = compile $ Set var expr

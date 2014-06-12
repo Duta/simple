@@ -86,6 +86,14 @@ exeIf (B b:Code c2:Code c1:s, v) = exeCode m (if b then c1 else c2) >> return m
 exeIf (_:_:_, _)                 = typeError
 exeIf _                          = stackUnderflowError
 
+exeWhile :: Memory -> IO Memory
+exeWhile (B b:Code c:s, v) = if b
+    then exeCode m c >>= (\(s', v') -> exeWhile (B b:Code c:s', v'))
+    else return m
+  where m = (s, v)
+exeWhile (_:_, _)          = typeError
+exeWhile _                 = stackUnderflowError
+
 exeIns :: Memory -> Instruction -> IO Memory
 exeIns (s, v)     (Const n)  = return (n:s, v)
 exeIns (_, v)     ClearStack = return ([], v)
@@ -111,6 +119,7 @@ exeIns _          Flip       = stackUnderflowError
 exeIns (n:s, v)   Print      = putStr (repr n) >> return (s, v)
 exeIns _          Print      = stackUnderflowError
 exeIns m          If         = exeIf m
+exeIns m          While      = exeWhile m
 exeIns (n:s, v)   (Store i)  = return (s, M.insert i n v)
 exeIns _          (Store i)  = stackUnderflowError
 exeIns (s, v)     (Load i)   = case M.lookup i v of
