@@ -1,0 +1,57 @@
+[Const (I 100)
+,Store "totalPrimes"
+,Const (I 0)
+,Store "numPrimes"
+,Const (I 2)
+,Store "currentNum"
+,Const (Code
+    [Const (B True)
+    ,Store "isPrime"
+    ,Const (I 2)
+    ,Store "currentDivisor"
+    ,Const (Code
+        [Const (Code
+            [Const (B False)
+            ,Store "isPrime"
+            ,ClearStack])
+        ,Const (Code [])
+        ,Load "currentDivisor"
+        ,Load "currentNum"
+        ,Divides
+        ,If
+        ,Load "currentDivisor"
+        ,Const (I 1)
+        ,Add
+        ,Store "currentDivisor"
+        ,ClearStack])
+    ,Const (Code
+        [Load "currentDivisor"
+        ,Load "currentNum"
+        ,Const (I 2)
+        ,Div
+        ,Lt
+        ,Load "isPrime"
+        ,And])
+    ,While
+    ,Const (Code
+        [Load "numPrimes"
+        ,Const (I 1)
+        ,Add
+        ,Store "numPrimes"
+        ,ClearStack
+        ,Load "currentNum"
+        ,Print
+        ,ClearStack])
+    ,Const (Code [])
+    ,Load "isPrime"
+    ,If
+    ,Load "currentNum"
+    ,Const (I 1)
+    ,Add
+    ,Store "currentNum"
+    ,ClearStack])
+,Const (Code
+    [Load "numPrimes"
+    ,Load "totalPrimes"
+    ,Lt])
+,While]
