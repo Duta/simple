@@ -154,9 +154,9 @@ terminals :: Parser Expr
 terminals = parens expression
         <|> try functionCall
         <|> try assignment
-        <|> liftM Var identifier
-        <|> liftM (IntLit . fromIntegral) integer
         <|> liftM BoolLit boolean
+        <|> liftM (IntLit . fromIntegral) integer
+        <|> liftM Var identifier
         <?> "terminal expression"
 
 assignment :: Parser Expr
