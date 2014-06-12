@@ -19,6 +19,6 @@ instance Compilable Expr where
   compile (FuncCall func args) = undefined
   compile (Var var)            = [Load var]
   compile (IntLit int)         = [I int]
-  compile (BoolLit bool)       = undefined
+  compile (BoolLit bool)       = [B bool]
   compile (UnaryOp op expr)    = undefined
   compile (BinaryOp op e1 e2)  = undefined
