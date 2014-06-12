@@ -1,5 +1,6 @@
 module Simple.VM where
 
+import           Control.DeepSeq (NFData(..))
 import           Control.Monad (foldM, void)
 import qualified Data.Map as M
 
@@ -41,6 +42,8 @@ type Bytecode = [Instruction]
 type Stack = [Value]
 type Vars = M.Map String Value
 type Memory = (Stack, Vars)
+
+instance NFData Instruction where
 
 repr :: Value -> String
 repr (B True)  = "true"
