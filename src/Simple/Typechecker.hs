@@ -70,23 +70,32 @@ instance Typecheckable Stmt where
                                         ( errors (typecheck m cond)
                                        ++ errors (typecheck m stmts)
                                         ) m
-  typecheck m (Init varType var expr p) = TypecheckResults [] m -- TODO
+  typecheck m (Init varType var expr p) = TypecheckResults
+                                        ( getErrors
+                                        $ expectingType expr varType
+                                        ) (M.insert var varType m)
   typecheck m (Expr expr p)             = typecheck m expr
 
 instance Typecheckable Expr where
   typecheck m (Set var expr p)       = TypecheckResults [] m -- TODO
   typecheck m (FuncCall func args p) = TypecheckResults [] m -- TODO
   typecheck m expr@UnaryOp{}         = TypecheckResults
-                                     ( either id (const []) $ resolveType expr
+                                     ( getResolutionErrors expr
                                      ) m
   typecheck m expr@BinaryOp{}        = TypecheckResults
-                                     ( either id (const []) $ resolveType expr
+                                     ( getResolutionErrors expr
                                      ) m
   typecheck m _                      = TypecheckResults [] m
 
 type ResolvedType = Either [TypeError] Type
 
 type TypeMap = M.Map Identifier Type
+
+getErrors :: ResolvedType -> [TypeError]
+getErrors = either id (const [])
+
+getResolutionErrors :: Expr -> [TypeError]
+getResolutionErrors = getErrors . resolveType
 
 ensureType :: Expr -> Type -> Type -> ResolvedType
 ensureType expr expected actual = if expected == actual
