@@ -1,3 +1,5 @@
+// Generates the first 100 primes
+
 int totalPrimes := 100;
 int numPrimes := 0;
 int currentNum := 2;
