@@ -117,7 +117,8 @@ resolveType :: TypeMap -> Expr -> ResolvedType
 resolveType m (Set var expr p)       = maybe (Left []) Right
                                      $ M.lookup var m
 resolveType m (FuncCall func args p) = Left [] -- TODO
-resolveType m (Var var p)            = Left [] -- TODO
+resolveType m (Var var p)            = maybe (Left []) Right
+                                     $ M.lookup var m
 resolveType m (IntLit int p)         = Right Int
 resolveType m (BoolLit bool p)       = Right Bool
 resolveType m (UnaryOp op p expr)    = resolveUnaryOpType m op expr
