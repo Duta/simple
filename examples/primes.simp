@@ -1,23 +1,17 @@
 // Generates the first 100 primes
 
-int totalPrimes := 100;
-int numPrimes := 0;
-int currentNum := 2;
+int n := 2;
 
-while numPrimes < totalPrimes {
+for int numPrimes := 0; numPrimes < 100; n++ {
     bool isPrime := true;
-    int currentDivisor := 2;
-    while currentDivisor < currentNum/2 and isPrime {
-        if currentDivisor | currentNum {
+    for int divisor := 2; divisor < n/2 and isPrime; divisor++ {
+        if divisor | n {
             isPrime := false;
         }
-        currentDivisor++;
     }
 
     if isPrime {
         numPrimes++;
-        print(currentNum);
+        print(n);
     }
-
-    currentNum++;
 }
