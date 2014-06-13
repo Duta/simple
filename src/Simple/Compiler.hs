@@ -21,7 +21,7 @@ instance Compilable Stmt where
   compile (Expr expr _)                 = compile expr ++ [ClearStack]
 
 instance Compilable Expr where
-  compile (Set var expr _)                = compile expr ++ [Store var]
+  compile (Set var expr _)                = compile expr ++ [Store var, Load var]
   compile (FuncCall func args _)          = if func == "print"
     then concatMap compile args ++ [Print]
     else error $ "Unknown function " ++ func
