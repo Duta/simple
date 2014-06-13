@@ -2,7 +2,10 @@ module Simple.AST where
 
 import           Text.ParserCombinators.Parsec.Pos (SourcePos(..))
 
-data Source = Source {start :: SourcePos, end :: SourcePos} deriving (Show, Eq)
+data Source = Source
+              { start :: SourcePos
+              , end   :: SourcePos
+              } deriving (Show, Eq)
 
 data Stmt
   = Seq    [Stmt]                 Source
@@ -56,3 +59,23 @@ data Type
     deriving (Show, Eq)
 
 type Identifier = String
+
+class HasSource a where
+  source :: a -> Source
+
+instance HasSource Stmt where
+  source (Seq stmts p)             = p
+  source (While cond stmts p)      = p
+  source (IfElse cond s1 s2 p)     = p
+  source (If cond stmt p)          = p
+  source (Init varType var expr p) = p
+  source (Expr expr p)             = p
+
+instance HasSource Expr where
+  source (Set var expr p)       = p
+  source (FuncCall func args p) = p
+  source (Var var p)            = p
+  source (IntLit int p)         = p
+  source (BoolLit bool p)       = p
+  source (UnaryOp op p expr)    = p
+  source (BinaryOp op p e1 e2)  = p
