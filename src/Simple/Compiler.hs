@@ -1,7 +1,8 @@
 module Simple.Compiler where
 
-import           Simple.AST as AST
-import           Simple.VM  as VM
+import           Text.ParserCombinators.Parsec.Pos
+import           Simple.AST                        as AST
+import           Simple.VM                         as VM
 
 class Compilable a where
   compile :: a -> Bytecode
@@ -34,7 +35,7 @@ instance Compilable Expr where
     , Store var
     , Load var
     ]
-  compile (UnaryOp PreDec _ _)            = incrementVarError True True
+  compile (UnaryOp PreDec p _)            = incrementVarError True True $ Just p
   compile (UnaryOp PostDec _ (Var var _)) =
     [ Load var
     , Load var
@@ -42,7 +43,7 @@ instance Compilable Expr where
     , VM.Sub
     , Store var
     ]
-  compile (UnaryOp PostDec _ _)           = incrementVarError False True
+  compile (UnaryOp PostDec p _)           = incrementVarError False True $ Just p
   compile (UnaryOp PreInc _ (Var var _))  =
     [ Load var
     , Const (I 1)
@@ -50,7 +51,7 @@ instance Compilable Expr where
     , Store var
     , Load var
     ]
-  compile (UnaryOp PreInc _ _)            = incrementVarError True False
+  compile (UnaryOp PreInc p _)            = incrementVarError True False $ Just p
   compile (UnaryOp PostInc _ (Var var _)) =
     [ Load var
     , Load var
@@ -58,17 +59,17 @@ instance Compilable Expr where
     , VM.Add
     , Store var
     ]
-  compile (UnaryOp PostInc _ _)           = incrementVarError False False
+  compile (UnaryOp PostInc p _)           = incrementVarError False False $ Just p
   compile (UnaryOp op _ expr)             = compile expr ++ compile op
   compile (BinaryOp op _ e1 e2)           = compile e1 ++ compile e2 ++ compile op
 
 instance Compilable UnaryOp where
   compile AST.Neg     = [VM.Neg]
   compile AST.Not     = [VM.Not]
-  compile AST.PreDec  = incrementVarError True True
-  compile AST.PostDec = incrementVarError False True
-  compile AST.PreInc  = incrementVarError True False
-  compile AST.PostInc = incrementVarError False False
+  compile AST.PreDec  = incrementVarError True  True  Nothing
+  compile AST.PostDec = incrementVarError False True  Nothing
+  compile AST.PreInc  = incrementVarError True  False Nothing
+  compile AST.PostInc = incrementVarError False False Nothing
 
 instance Compilable BinaryOp where
   compile AST.Add     = [VM.Add]
@@ -87,10 +88,28 @@ instance Compilable BinaryOp where
   compile AST.And     = [VM.And]
   compile AST.Or      = [VM.Or]
 
-compileError :: String -> a
-compileError = error . ("Compile Error: "++)
+compileError :: String -> Maybe Source -> a
+compileError msg p = error
+  $ showString "Compile error"
+  . maybe id
+    ( \(Source start end) ->
+      showString " ("
+    . showString (sourceName start)
+    . showString " "
+    . shows (sourceLine start)
+    . showString ":"
+    . shows (sourceColumn start)
+    . showString "-"
+    . shows (sourceLine end)
+    . showString ":"
+    . shows (sourceColumn end)
+    . showString ")"
+    ) p
+  . showString ": "
+  . showString msg
+  $ ""
 
-incrementVarError :: Bool -> Bool -> a
+incrementVarError :: Bool -> Bool -> Maybe Source -> a
 incrementVarError pre dec = compileError $
   "Can only " ++ (if pre then "pre" else "post") ++ "-" ++
   (if dec then "dec" else "inc") ++ "rement variables"
