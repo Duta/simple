@@ -90,12 +90,8 @@ instance Typecheckable Expr where
                                      $ M.lookup var m
                                      ) m
   typecheck m (FuncCall func args p) = TypecheckResults [] m -- TODO
-  typecheck m expr@UnaryOp{}         = TypecheckResults
-                                     ( getResolutionErrors m expr
-                                     ) m
-  typecheck m expr@BinaryOp{}        = TypecheckResults
-                                     ( getResolutionErrors m expr
-                                     ) m
+  typecheck m expr@UnaryOp{}         = TypecheckResults (getResolutionErrors m expr) m
+  typecheck m expr@BinaryOp{}        = TypecheckResults (getResolutionErrors m expr) m
   typecheck m _                      = TypecheckResults [] m
 
 type ResolvedType = Either [TypeError] Type
@@ -103,7 +99,7 @@ type ResolvedType = Either [TypeError] Type
 type TypeMap = M.Map Identifier Type
 
 getErrors :: ResolvedType -> [TypeError]
-getErrors = either id (const [])
+getErrors = either id $ const []
 
 getResolutionErrors :: TypeMap -> Expr -> [TypeError]
 getResolutionErrors m = getErrors . resolveType m
