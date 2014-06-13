@@ -78,7 +78,7 @@ instance Typecheckable Stmt where
                                         ) m
   typecheck m (Init varType var expr p) = TypecheckResults
                                         ( getErrors
-                                        $ expectingType expr varType
+                                        $ expectingType m expr varType
                                         ) (M.insert var varType m)
   typecheck m (Expr expr p)             = typecheck m expr
 
@@ -86,15 +86,15 @@ instance Typecheckable Stmt where
 
 instance Typecheckable Expr where
   typecheck m (Set var expr p)       = TypecheckResults
-                                     ( maybe [] (getErrors . expectingType expr)
+                                     ( maybe [] (getErrors . expectingType m expr)
                                      $ M.lookup var m
                                      ) m
   typecheck m (FuncCall func args p) = TypecheckResults [] m -- TODO
   typecheck m expr@UnaryOp{}         = TypecheckResults
-                                     ( getResolutionErrors expr
+                                     ( getResolutionErrors m expr
                                      ) m
   typecheck m expr@BinaryOp{}        = TypecheckResults
-                                     ( getResolutionErrors expr
+                                     ( getResolutionErrors m expr
                                      ) m
   typecheck m _                      = TypecheckResults [] m
 
@@ -105,48 +105,49 @@ type TypeMap = M.Map Identifier Type
 getErrors :: ResolvedType -> [TypeError]
 getErrors = either id (const [])
 
-getResolutionErrors :: Expr -> [TypeError]
-getResolutionErrors = getErrors . resolveType
+getResolutionErrors :: TypeMap -> Expr -> [TypeError]
+getResolutionErrors m = getErrors . resolveType m
 
 ensureType :: Expr -> Type -> Type -> ResolvedType
 ensureType expr expected actual = if expected == actual
   then Right expected
   else Left [TypeError expr expected actual]
 
-resolveType :: Expr -> ResolvedType
-resolveType (Set var expr p)       = Left [] -- TODO
-resolveType (FuncCall func args p) = Left [] -- TODO
-resolveType (Var var p)            = Left [] -- TODO
-resolveType (IntLit int p)         = Right Int
-resolveType (BoolLit bool p)       = Right Bool
-resolveType (UnaryOp op p expr)    = resolveUnaryOpType op expr
-resolveType (BinaryOp op p e1 e2)  = resolveBinaryOpType op e1 e2
+resolveType :: TypeMap -> Expr -> ResolvedType
+resolveType m (Set var expr p)       = maybe (Left []) Right
+                                     $ M.lookup var m
+resolveType m (FuncCall func args p) = Left [] -- TODO
+resolveType m (Var var p)            = Left [] -- TODO
+resolveType m (IntLit int p)         = Right Int
+resolveType m (BoolLit bool p)       = Right Bool
+resolveType m (UnaryOp op p expr)    = resolveUnaryOpType m op expr
+resolveType m (BinaryOp op p e1 e2)  = resolveBinaryOpType m op e1 e2
 
-expectingType :: Expr -> Type -> ResolvedType
-expectingType expr expected = resolveType expr >>= ensureType expr expected
+expectingType :: TypeMap -> Expr -> Type -> ResolvedType
+expectingType m expr expected = resolveType m expr >>= ensureType expr expected
 
-resolveUnaryOpType :: UnaryOp -> Expr -> ResolvedType
-resolveUnaryOpType Neg     expr = expectingType expr Int
-resolveUnaryOpType Not     expr = expectingType expr Bool
-resolveUnaryOpType PreDec  expr = expectingType expr Int
-resolveUnaryOpType PostDec expr = expectingType expr Int
-resolveUnaryOpType PreInc  expr = expectingType expr Int
-resolveUnaryOpType PostInc expr = expectingType expr Int
+resolveUnaryOpType :: TypeMap -> UnaryOp -> Expr -> ResolvedType
+resolveUnaryOpType m Neg     expr = expectingType m expr Int
+resolveUnaryOpType m Not     expr = expectingType m expr Bool
+resolveUnaryOpType m PreDec  expr = expectingType m expr Int
+resolveUnaryOpType m PostDec expr = expectingType m expr Int
+resolveUnaryOpType m PreInc  expr = expectingType m expr Int
+resolveUnaryOpType m PostInc expr = expectingType m expr Int
 
 -- TODO: If both expressions have type errors, concat the two lists
-resolveBinaryOpType :: BinaryOp -> Expr -> Expr -> ResolvedType
-resolveBinaryOpType Add     e1 e2 = expectingType e1 Int  >> expectingType e2 Int
-resolveBinaryOpType Sub     e1 e2 = expectingType e1 Int  >> expectingType e2 Int
-resolveBinaryOpType Mul     e1 e2 = expectingType e1 Int  >> expectingType e2 Int
-resolveBinaryOpType Div     e1 e2 = expectingType e1 Int  >> expectingType e2 Int
-resolveBinaryOpType Mod     e1 e2 = expectingType e1 Int  >> expectingType e2 Int
-resolveBinaryOpType Exp     e1 e2 = expectingType e1 Int  >> expectingType e2 Int
-resolveBinaryOpType Divides e1 e2 = expectingType e1 Int  >> expectingType e2 Int
-resolveBinaryOpType Eq      e1 e2 = expectingType e1 Int  >> expectingType e2 Int  >> return Bool
-resolveBinaryOpType Ineq    e1 e2 = expectingType e1 Int  >> expectingType e2 Int  >> return Bool
-resolveBinaryOpType Lt      e1 e2 = expectingType e1 Int  >> expectingType e2 Int  >> return Bool
-resolveBinaryOpType Gt      e1 e2 = expectingType e1 Int  >> expectingType e2 Int  >> return Bool
-resolveBinaryOpType LtEq    e1 e2 = expectingType e1 Int  >> expectingType e2 Int  >> return Bool
-resolveBinaryOpType GtEq    e1 e2 = expectingType e1 Int  >> expectingType e2 Int  >> return Bool
-resolveBinaryOpType And     e1 e2 = expectingType e1 Bool >> expectingType e2 Bool
-resolveBinaryOpType Or      e1 e2 = expectingType e1 Bool >> expectingType e2 Bool
+resolveBinaryOpType :: TypeMap -> BinaryOp -> Expr -> Expr -> ResolvedType
+resolveBinaryOpType m Add     e1 e2 = expectingType m e1 Int  >> expectingType m e2 Int
+resolveBinaryOpType m Sub     e1 e2 = expectingType m e1 Int  >> expectingType m e2 Int
+resolveBinaryOpType m Mul     e1 e2 = expectingType m e1 Int  >> expectingType m e2 Int
+resolveBinaryOpType m Div     e1 e2 = expectingType m e1 Int  >> expectingType m e2 Int
+resolveBinaryOpType m Mod     e1 e2 = expectingType m e1 Int  >> expectingType m e2 Int
+resolveBinaryOpType m Exp     e1 e2 = expectingType m e1 Int  >> expectingType m e2 Int
+resolveBinaryOpType m Divides e1 e2 = expectingType m e1 Int  >> expectingType m e2 Int
+resolveBinaryOpType m Eq      e1 e2 = expectingType m e1 Int  >> expectingType m e2 Int  >> return Bool
+resolveBinaryOpType m Ineq    e1 e2 = expectingType m e1 Int  >> expectingType m e2 Int  >> return Bool
+resolveBinaryOpType m Lt      e1 e2 = expectingType m e1 Int  >> expectingType m e2 Int  >> return Bool
+resolveBinaryOpType m Gt      e1 e2 = expectingType m e1 Int  >> expectingType m e2 Int  >> return Bool
+resolveBinaryOpType m LtEq    e1 e2 = expectingType m e1 Int  >> expectingType m e2 Int  >> return Bool
+resolveBinaryOpType m GtEq    e1 e2 = expectingType m e1 Int  >> expectingType m e2 Int  >> return Bool
+resolveBinaryOpType m And     e1 e2 = expectingType m e1 Bool >> expectingType m e2 Bool
+resolveBinaryOpType m Or      e1 e2 = expectingType m e1 Bool >> expectingType m e2 Bool
