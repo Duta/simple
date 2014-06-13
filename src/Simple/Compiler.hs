@@ -9,18 +9,20 @@ class Compilable a where
   compile :: a -> Bytecode
 
 instance Compilable Stmt where
-  compile (Seq stmts _)                 = concatMap compile stmts
-  compile (AST.While cond stmts _)      = [Const $ Code (compile stmts)]
-                                       ++ [Const $ Code (compile cond)]
-                                       ++ [VM.While]
-  compile (IfElse cond stmts1 stmts2 _) = [Const $ Code (compile stmts1)]
-                                       ++ [Const $ Code (compile stmts2)]
-                                       ++ compile cond
-                                       ++ [VM.If]
-  compile (AST.If cond stmts s)         = compile $ IfElse cond stmts (Seq [] s) s
-  compile (Init varType var expr s)     = compile $ Set var expr s
-  compile (Decl varType var s)          = compile $ Set var (defaultExpr varType) s
-  compile (Expr expr _)                 = compile expr ++ [ClearStack]
+  compile (Seq stmts _)              = concatMap compile stmts
+  compile (AST.While cond stmts _)   = [Const $ Code (compile stmts)]
+                                    ++ [Const $ Code (compile cond)]
+                                    ++ [VM.While]
+  compile (For ini cond inc stmts p) = compile ini
+                                    ++ compile (AST.While cond (Seq [stmts, Expr inc p] p) p)
+  compile (IfElse cond s1 s2 _)      = [Const $ Code (compile s1)]
+                                    ++ [Const $ Code (compile s2)]
+                                    ++ compile cond
+                                    ++ [VM.If]
+  compile (AST.If cond stmts p)      = compile $ IfElse cond stmts (Seq [] p) p
+  compile (Init varType var expr p)  = compile $ Set var expr p
+  compile (Decl varType var p)       = compile $ Set var (defaultExpr varType) p
+  compile (Expr expr _)              = compile expr ++ [ClearStack]
 
 instance Compilable Expr where
   compile (Set var expr _)                = compile expr ++ [Store var, Load var]

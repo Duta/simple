@@ -33,6 +33,7 @@ Current features:
  - Bool type
  - If / if-else statements
  - While loops
+ - For loops
  - Pre/post-dec/increment
  - Print function
  - Various primitive operators
@@ -45,7 +46,6 @@ Planned features:
  - Array type
  - String type
  - Custom functions
- - For loops
  - More compilation-time checking
     - Check initialization before assignment
     - Scope checking

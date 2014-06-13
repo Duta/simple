@@ -8,13 +8,14 @@ data Source = Source
               } deriving (Show, Eq)
 
 data Stmt
-  = Seq    [Stmt]                 Source
-  | While  Expr   Stmt            Source
-  | IfElse Expr   Stmt       Stmt Source
-  | If     Expr   Stmt            Source
-  | Decl   Type   Identifier      Source
-  | Init   Type   Identifier Expr Source
-  | Expr   Expr                   Source
+  = Seq    [Stmt]                      Source
+  | While  Expr   Stmt                 Source
+  | For    Stmt   Expr       Expr Stmt Source
+  | IfElse Expr   Stmt       Stmt      Source
+  | If     Expr   Stmt                 Source
+  | Decl   Type   Identifier           Source
+  | Init   Type   Identifier Expr      Source
+  | Expr   Expr                        Source
     deriving (Show, Eq)
 
 data Expr

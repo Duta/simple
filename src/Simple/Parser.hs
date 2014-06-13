@@ -22,6 +22,7 @@ languageDef = javaStyle
   , reservedNames =
     -- Control structures
     [ "while"
+    , "for"
     , "if"
     , "else"
     -- Primitive types
@@ -90,6 +91,7 @@ annotate p = do
 statement :: Parser Stmt
 statement = parens statement
         <|> whileStatement
+        <|> forStatement
         <|> try ifElseStatement
         <|> ifStatement
         <|> try initStatement
@@ -104,6 +106,16 @@ whileStatement = annotate $ do
   cond <- expression
   stmts <- bracedStatements
   return $ While cond stmts
+
+forStatement :: Parser Stmt
+forStatement = annotate $ do
+  reserved "for"
+  ini <- statement
+  cond <- expression
+  semi
+  inc <- expression
+  stmts <- bracedStatements
+  return $ For ini cond inc stmts
 
 ifElseStatement :: Parser Stmt
 ifElseStatement = annotate $ do

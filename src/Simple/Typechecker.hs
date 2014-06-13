@@ -54,39 +54,46 @@ class Typecheckable a where
   typecheck :: TypeMap -> a -> TypecheckResults
 
 instance Typecheckable Stmt where
-  typecheck m (Seq stmts p)             = TypecheckResults
-                                        ( errors
-                                        $ foldl
-                                          (\(TypecheckResults errs m) stmt
-                                            -> let (TypecheckResults errs' m') = typecheck m stmt
-                                            in TypecheckResults (errs ++ errs') m')
-                                          (TypecheckResults [] m)
-                                          stmts
-                                        ) m
-  typecheck m (While cond stmts p)      = TypecheckResults
-                                        ( errors (typecheck m cond)
-                                       ++ errors (typecheck m stmts)
-                                        ) m
-  typecheck m (IfElse cond s1 s2 p)     = TypecheckResults
-                                        ( errors (typecheck m cond)
-                                       ++ errors (typecheck m s1)
-                                       ++ errors (typecheck m s2)
-                                        ) m
-  typecheck m (If cond stmts p)         = TypecheckResults
-                                        ( errors (typecheck m cond)
-                                       ++ errors (typecheck m stmts)
-                                        ) m
-  typecheck m (Init varType var expr p) = TypecheckResults
-                                        ( getErrors
-                                        $ expectingType m expr varType
-                                        ) (M.insert var varType m)
-  typecheck m (Decl varType var p)      = TypecheckResults []
-                                        $ M.insert var varType m
-  typecheck m (Expr expr p)             = typecheck m expr
+  typecheck m (Seq stmts p)              = foldl
+                                           (\(TypecheckResults errs m) stmt
+                                             -> let (TypecheckResults errs' m') = typecheck m stmt
+                                             in TypecheckResults (errs ++ errs') m')
+                                           (TypecheckResults [] m)
+                                           stmts
+  typecheck m (While cond stmts p)       = TypecheckResults
+                                         ( getTypecheckErrors m cond
+                                        ++ getExpectedTypeErrors m cond Bool
+                                        ++ getTypecheckErrors m stmts
+                                         ) m
+  typecheck m (For ini cond inc stmts p) = let m' = typeMap $ typecheck m ini
+                                        in TypecheckResults
+                                         ( getTypecheckErrors m' cond
+                                        ++ getExpectedTypeErrors m' cond Bool
+                                        ++ getTypecheckErrors m' inc
+                                        ++ getTypecheckErrors m' stmts
+                                         ) m'
+  typecheck m (IfElse cond s1 s2 p)      = TypecheckResults
+                                         ( getTypecheckErrors m cond
+                                        ++ getExpectedTypeErrors m cond Bool
+                                        ++ getTypecheckErrors m s1
+                                        ++ getTypecheckErrors m s2
+                                         ) m
+  typecheck m (If cond stmts p)          = TypecheckResults
+                                         ( getTypecheckErrors m cond
+                                        ++ getExpectedTypeErrors m cond Bool
+                                        ++ getTypecheckErrors m stmts
+                                         ) m
+  typecheck m (Init varType var expr p)  = TypecheckResults
+                                         ( getErrors
+                                         $ expectingType m expr varType
+                                         ) (M.insert var varType m)
+  typecheck m (Decl varType var p)       = TypecheckResults []
+                                         $ M.insert var varType m
+  typecheck m (Expr expr p)              = typecheck m expr
 
 instance Typecheckable Expr where
   typecheck m (Set var expr p)       = TypecheckResults
-                                     ( maybe [] (getErrors . expectingType m expr)
+                                     ( maybe [] (getExpectedTypeErrors m expr)
                                      $ M.lookup var m
                                      ) m
   typecheck m (FuncCall func args p) = TypecheckResults [] m -- TODO
@@ -103,6 +110,12 @@ getErrors = either id $ const []
 
 getResolutionErrors :: TypeMap -> Expr -> [TypeError]
 getResolutionErrors m = getErrors . resolveType m
+
+getTypecheckErrors :: Typecheckable a => TypeMap -> a -> [TypeError]
+getTypecheckErrors m = errors . typecheck m
+
+getExpectedTypeErrors :: TypeMap -> Expr -> Type -> [TypeError]
+getExpectedTypeErrors m expr = getErrors . expectingType m expr
 
 ensureType :: Expr -> Type -> Type -> ResolvedType
 ensureType expr expected actual = if expected == actual
