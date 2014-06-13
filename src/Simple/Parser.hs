@@ -10,7 +10,7 @@ import           Simple.AST
 parseFile :: String -> IO Stmt
 parseFile file = do
   program <- readFile file
-  case parse simpleParser "" program of
+  case parse simpleParser file program of
    Left e  -> print e >> fail "parse error"
    Right r -> return r
 
