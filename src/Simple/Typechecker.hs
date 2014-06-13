@@ -1,6 +1,7 @@
 module Simple.Typechecker where
 
 import           Data.List (intercalate)
+import qualified Data.Map                          as M
 import           Text.ParserCombinators.Parsec.Pos
 import           Simple.AST
 
@@ -12,14 +13,14 @@ data TypeError = TypeError
 
 check :: Stmt -> Stmt
 check stmt
-  | null errors = stmt
-  | otherwise   = error
-                . intercalate "\n"
-                . (["Type errors:"]++)
-                . map repr
-                $ errors
+  | null typeErrors = stmt
+  | otherwise       = error
+                    . intercalate "\n"
+                    . (["Type errors:"]++)
+                    . map repr
+                    $ typeErrors
     where
-      errors = typecheck stmt
+      typeErrors = errors $ typecheck M.empty stmt
       repr typeError
         = showString " - Expected: "
         . shows (expected typeError)
@@ -44,32 +45,48 @@ check stmt
             l2   = sourceLine   $ end   p
             c2   = sourceColumn $ end   p
 
-class Typecheckable a where
-  typecheck :: a -> [TypeError]
+data TypecheckResults = TypecheckResults
+                      { errors  :: [TypeError]
+                      , typeMap :: TypeMap
+                      } deriving (Show, Eq)
 
-typecheckAll :: Typecheckable a => [a] -> [TypeError]
-typecheckAll = concatMap typecheck
+class Typecheckable a where
+  typecheck :: TypeMap -> a -> TypecheckResults
 
 instance Typecheckable Stmt where
-  typecheck (Seq stmts p)             = typecheckAll stmts
-  typecheck (While cond stmts p)      = typecheck cond
-                                     ++ typecheck stmts
-  typecheck (IfElse cond s1 s2 p)     = typecheck cond
-                                     ++ typecheck s1
-                                     ++ typecheck s2
-  typecheck (If cond stmt p)          = typecheck cond
-                                     ++ typecheck stmt
-  typecheck (Init varType var expr p) = [] -- TODO
-  typecheck (Expr expr p)             = typecheck expr
+  typecheck m (Seq stmts p)             = TypecheckResults
+                                        ( concatMap (errors . typecheck m) stmts
+                                        ) m
+  typecheck m (While cond stmts p)      = TypecheckResults
+                                        ( errors (typecheck m cond)
+                                       ++ errors (typecheck m stmts)
+                                        ) m
+  typecheck m (IfElse cond s1 s2 p)     = TypecheckResults
+                                        ( errors (typecheck m cond)
+                                       ++ errors (typecheck m s1)
+                                       ++ errors (typecheck m s2)
+                                        ) m
+  typecheck m (If cond stmts p)         = TypecheckResults
+                                        ( errors (typecheck m cond)
+                                       ++ errors (typecheck m stmts)
+                                        ) m
+  typecheck m (Init varType var expr p) = TypecheckResults [] m -- TODO
+  typecheck m (Expr expr p)             = typecheck m expr
 
 instance Typecheckable Expr where
-  typecheck (Set var expr p)       = [] -- TODO
-  typecheck (FuncCall func args p) = [] -- TODO
-  typecheck expr@UnaryOp{}         = either id (const []) $ resolveType expr
-  typecheck expr@BinaryOp{}        = either id (const []) $ resolveType expr
-  typecheck _                      = []
+  typecheck m (Set var expr p)       = TypecheckResults [] m -- TODO
+  typecheck m (FuncCall func args p) = TypecheckResults [] m -- TODO
+  typecheck m expr@UnaryOp{}         = TypecheckResults
+                                     ( either id (const []) $ resolveType expr
+                                     ) m
+  typecheck m expr@BinaryOp{}        = TypecheckResults
+                                     ( either id (const []) $ resolveType expr
+                                     ) m
+  typecheck m _                      = TypecheckResults [] m
 
 type ResolvedType = Either [TypeError] Type
+
+type TypeMap = M.Map Identifier Type
 
 ensureType :: Expr -> Type -> Type -> ResolvedType
 ensureType expr expected actual = if expected == actual
@@ -77,9 +94,9 @@ ensureType expr expected actual = if expected == actual
   else Left [TypeError expr expected actual]
 
 resolveType :: Expr -> ResolvedType
-resolveType (Set var expr p)       = Left []
-resolveType (FuncCall func args p) = Left []
-resolveType (Var var p)            = Left []
+resolveType (Set var expr p)       = Left [] -- TODO
+resolveType (FuncCall func args p) = Left [] -- TODO
+resolveType (Var var p)            = Left [] -- TODO
 resolveType (IntLit int p)         = Right Int
 resolveType (BoolLit bool p)       = Right Bool
 resolveType (UnaryOp op p expr)    = resolveUnaryOpType op expr
