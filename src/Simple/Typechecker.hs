@@ -55,7 +55,13 @@ class Typecheckable a where
 
 instance Typecheckable Stmt where
   typecheck m (Seq stmts p)             = TypecheckResults
-                                        ( concatMap (errors . typecheck m) stmts
+                                        ( errors
+                                        $ foldl
+                                          (\(TypecheckResults errs m) stmt
+                                            -> let (TypecheckResults errs' m') = typecheck m stmt
+                                            in TypecheckResults (errs ++ errs') m')
+                                          (TypecheckResults [] m)
+                                          stmts
                                         ) m
   typecheck m (While cond stmts p)      = TypecheckResults
                                         ( errors (typecheck m cond)
@@ -76,8 +82,13 @@ instance Typecheckable Stmt where
                                         ) (M.insert var varType m)
   typecheck m (Expr expr p)             = typecheck m expr
 
+
+
 instance Typecheckable Expr where
-  typecheck m (Set var expr p)       = TypecheckResults [] m -- TODO
+  typecheck m (Set var expr p)       = TypecheckResults
+                                     ( maybe [] (getErrors . expectingType expr)
+                                     $ M.lookup var m
+                                     ) m
   typecheck m (FuncCall func args p) = TypecheckResults [] m -- TODO
   typecheck m expr@UnaryOp{}         = TypecheckResults
                                      ( getResolutionErrors expr
