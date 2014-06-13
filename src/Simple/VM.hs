@@ -1,4 +1,4 @@
-module Simple.VM where
+module Simple.VM (Instruction(..), Value(..), Bytecode, execute) where
 
 import           Control.DeepSeq (NFData(..))
 import           Control.Monad (foldM, void)

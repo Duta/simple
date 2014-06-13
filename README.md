@@ -36,6 +36,7 @@ Current features:
  - Pre/post-dec/increment
  - Print function
  - Various primitive operators
+ - Default-value initialization
  - Typechecker
  - Compiles to a high-level bytecode
  - Stack-based bytecode interpreter
@@ -45,7 +46,6 @@ Planned features:
  - String type
  - Custom functions
  - For loops
- - Default-value initialization
  - More compilation-time checking
     - Check initialization before assignment
     - Scope checking

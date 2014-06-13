@@ -1,4 +1,4 @@
-module Simple.Parser where
+module Simple.Parser (parseFile) where
 
 import           Control.Monad (liftM)
 import           Text.ParserCombinators.Parsec
@@ -27,6 +27,9 @@ languageDef = javaStyle
     -- Primitive types
     , "int"
     , "bool"
+    -- Primitive values
+    , "true"
+    , "false"
     ]
   , reservedOpNames =
     -- Numerical
@@ -89,7 +92,8 @@ statement = parens statement
         <|> whileStatement
         <|> try ifElseStatement
         <|> ifStatement
-        <|> initStatement
+        <|> try initStatement
+        <|> declStatement
         <|> basicStatement
         <|> bracedStatements
         <?> "statement"
@@ -121,6 +125,13 @@ initStatement = annotate $ do
   Set var expr _ <- assignment
   semi
   return $ Init varType var expr
+
+declStatement :: Parser Stmt
+declStatement = annotate $ do
+  varType <- typeName
+  var <- identifier
+  semi
+  return $ Decl varType var
 
 basicStatement :: Parser Stmt
 basicStatement = annotate $ do

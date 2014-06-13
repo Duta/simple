@@ -1,4 +1,4 @@
-module Simple.Typechecker where
+module Simple.Typechecker (check) where
 
 import           Data.List (intercalate)
 import qualified Data.Map                          as M
@@ -80,9 +80,9 @@ instance Typecheckable Stmt where
                                         ( getErrors
                                         $ expectingType m expr varType
                                         ) (M.insert var varType m)
+  typecheck m (Decl varType var p)      = TypecheckResults []
+                                        $ M.insert var varType m
   typecheck m (Expr expr p)             = typecheck m expr
-
-
 
 instance Typecheckable Expr where
   typecheck m (Set var expr p)       = TypecheckResults

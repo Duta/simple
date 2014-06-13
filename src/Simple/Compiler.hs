@@ -2,6 +2,7 @@ module Simple.Compiler where
 
 import           Text.ParserCombinators.Parsec.Pos
 import           Simple.AST                        as AST
+import           Simple.Primitives
 import           Simple.VM                         as VM
 
 class Compilable a where
@@ -18,6 +19,7 @@ instance Compilable Stmt where
                                        ++ [VM.If]
   compile (AST.If cond stmts s)         = compile $ IfElse cond stmts (Seq [] s) s
   compile (Init varType var expr s)     = compile $ Set var expr s
+  compile (Decl varType var s)          = compile $ Set var (defaultExpr varType) s
   compile (Expr expr _)                 = compile expr ++ [ClearStack]
 
 instance Compilable Expr where
