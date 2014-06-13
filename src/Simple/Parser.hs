@@ -77,6 +77,13 @@ simpleParser = do
   eof
   return stmts
 
+annotate :: Parser (Source -> a) -> Parser a
+annotate p = do
+  start <- getPosition
+  f <- p
+  end <- getPosition
+  return . f $ Source start end
+
 statement :: Parser Stmt
 statement = parens statement
         <|> whileStatement
@@ -88,35 +95,35 @@ statement = parens statement
         <?> "statement"
 
 whileStatement :: Parser Stmt
-whileStatement = do
+whileStatement = annotate $ do
   reserved "while"
   cond <- expression
   stmts <- bracedStatements
   return $ While cond stmts
 
 ifElseStatement :: Parser Stmt
-ifElseStatement = do
-  If cond stmts1 <- ifStatement
+ifElseStatement = annotate $ do
+  If cond stmts1 _ <- ifStatement
   reserved "else"
   stmts2 <- bracedStatements
   return $ IfElse cond stmts1 stmts2
 
 ifStatement :: Parser Stmt
-ifStatement = do
+ifStatement = annotate $ do
   reserved "if"
   cond <- expression
   stmts <- bracedStatements
   return $ If cond stmts
 
 initStatement :: Parser Stmt
-initStatement = do
+initStatement = annotate $ do
   varType <- typeName
-  Set var expr <- assignment
+  Set var expr _ <- assignment
   semi
   return $ Init varType var expr
 
 basicStatement :: Parser Stmt
-basicStatement = do
+basicStatement = annotate $ do
   expr <- expression
   semi
   return $ Expr expr
@@ -125,7 +132,7 @@ bracedStatements :: Parser Stmt
 bracedStatements = braces statements
 
 statements :: Parser Stmt
-statements = liftM Seq $ many statement
+statements = annotate $ liftM Seq $ many statement
 
 expression :: Parser Expr
 expression = buildExpressionParser operators terminals
@@ -133,47 +140,58 @@ expression = buildExpressionParser operators terminals
 
 operators :: OperatorTable Char st Expr
 operators =
-  [ [Prefix  (reservedOp "-"   >> return (UnaryOp Neg))]
-  , [Prefix  (reservedOp "¬"   >> return (UnaryOp Not))]
-  , [Prefix  (reservedOp "--"  >> return (UnaryOp PreDec))]
-  , [Postfix (reservedOp "--"  >> return (UnaryOp PostDec))]
-  , [Prefix  (reservedOp "++"  >> return (UnaryOp PreInc))]
-  , [Postfix (reservedOp "++"  >> return (UnaryOp PostInc))]
-  , [Infix   (reservedOp "^"   >> return (BinaryOp Exp))     AssocLeft]
-  , [Infix   (reservedOp "*"   >> return (BinaryOp Mul))     AssocLeft]
-  , [Infix   (reservedOp "/"   >> return (BinaryOp Div))     AssocLeft]
-  , [Infix   (reservedOp "%"   >> return (BinaryOp Mod))     AssocLeft]
-  , [Infix   (reservedOp "|"   >> return (BinaryOp Divides)) AssocLeft]
-  , [Infix   (reservedOp "+"   >> return (BinaryOp Add))     AssocLeft]
-  , [Infix   (reservedOp "-"   >> return (BinaryOp Sub))     AssocLeft]
-  , [Infix   (reservedOp "="   >> return (BinaryOp Eq))      AssocLeft]
-  , [Infix   (reservedOp "=/=" >> return (BinaryOp Ineq))    AssocLeft]
-  , [Infix   (reservedOp "<"   >> return (BinaryOp Lt))      AssocLeft]
-  , [Infix   (reservedOp ">"   >> return (BinaryOp Gt))      AssocLeft]
-  , [Infix   (reservedOp "<="  >> return (BinaryOp LtEq))    AssocLeft]
-  , [Infix   (reservedOp ">="  >> return (BinaryOp GtEq))    AssocLeft]
-  , [Infix   (reservedOp "and" >> return (BinaryOp And))     AssocLeft]
-  , [Infix   (reservedOp "or"  >> return (BinaryOp Or))      AssocLeft]
+  [ prefixOp  "-"   (UnaryOp Neg)
+  , prefixOp  "¬"   (UnaryOp Not)
+  , prefixOp  "--"  (UnaryOp PreDec)
+  , postfixOp "--"  (UnaryOp PostDec)
+  , prefixOp  "++"  (UnaryOp PreInc)
+  , postfixOp "++"  (UnaryOp PostInc)
+  , infixOp   "^"   (BinaryOp Exp)     AssocLeft
+  , infixOp   "*"   (BinaryOp Mul)     AssocLeft
+  , infixOp   "/"   (BinaryOp Div)     AssocLeft
+  , infixOp   "%"   (BinaryOp Mod)     AssocLeft
+  , infixOp   "|"   (BinaryOp Divides) AssocLeft
+  , infixOp   "+"   (BinaryOp Add)     AssocLeft
+  , infixOp   "-"   (BinaryOp Sub)     AssocLeft
+  , infixOp   "="   (BinaryOp Eq)      AssocLeft
+  , infixOp   "=/=" (BinaryOp Ineq)    AssocLeft
+  , infixOp   "<"   (BinaryOp Lt)      AssocLeft
+  , infixOp   ">"   (BinaryOp Gt)      AssocLeft
+  , infixOp   "<="  (BinaryOp LtEq)    AssocLeft
+  , infixOp   ">="  (BinaryOp GtEq)    AssocLeft
+  , infixOp   "and" (BinaryOp And)     AssocLeft
+  , infixOp   "or"  (BinaryOp Or)      AssocLeft
   ]
+  where
+    -- TODO: Work out why this doesn't typecheck:
+    -- opParser s expr = annotate $ reservedOp s >> return expr
+    opParser  s expr       = do
+      start <- getPosition
+      reservedOp s
+      end <- getPosition
+      return . expr $ Source start end
+    prefixOp  s expr       = [Prefix  (opParser s expr)]
+    postfixOp s expr       = [Postfix (opParser s expr)]
+    infixOp   s expr assoc = [Infix   (opParser s expr) assoc]
 
 terminals :: Parser Expr
 terminals = parens expression
         <|> try functionCall
         <|> try assignment
-        <|> liftM BoolLit boolean
-        <|> liftM (IntLit . fromIntegral) integer
-        <|> liftM Var identifier
+        <|> annotate (liftM BoolLit boolean)
+        <|> annotate (liftM (IntLit . fromIntegral) integer)
+        <|> annotate (liftM Var identifier)
         <?> "terminal expression"
 
 assignment :: Parser Expr
-assignment = do
+assignment = annotate $ do
   var <- identifier
   reservedOp ":="
   expr <- expression
   return $ Set var expr
 
 functionCall :: Parser Expr
-functionCall = do
+functionCall = annotate $ do
   func <- identifier
   args <- parens $ commaSep expression
   return $ FuncCall func args

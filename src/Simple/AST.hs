@@ -1,22 +1,26 @@
 module Simple.AST where
 
+import           Text.ParserCombinators.Parsec.Pos (SourcePos(..))
+
+data Source = Source {start :: SourcePos, end :: SourcePos} deriving (Show, Eq)
+
 data Stmt
-  = Seq [Stmt]
-  | While Expr Stmt
-  | IfElse Expr Stmt Stmt
-  | If Expr Stmt
-  | Init Type Identifier Expr
-  | Expr Expr
+  = Seq    [Stmt]                 Source
+  | While  Expr   Stmt            Source
+  | IfElse Expr   Stmt       Stmt Source
+  | If     Expr   Stmt            Source
+  | Init   Type   Identifier Expr Source
+  | Expr   Expr                   Source
     deriving (Show, Eq)
 
 data Expr
-  = Set Identifier Expr
-  | FuncCall Identifier [Expr]
-  | Var Identifier
-  | IntLit Int
-  | BoolLit Bool
-  | UnaryOp UnaryOp Expr
-  | BinaryOp BinaryOp Expr Expr
+  = Set      Identifier Expr        Source
+  | FuncCall Identifier [Expr]      Source
+  | Var      Identifier             Source
+  | IntLit   Int                    Source
+  | BoolLit  Bool                   Source
+  | UnaryOp  UnaryOp    Source Expr
+  | BinaryOp BinaryOp   Source Expr Expr
     deriving (Show, Eq)
 
 data UnaryOp
