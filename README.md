@@ -71,11 +71,11 @@ Operators (in order of decreasing precedence):
     Infix   | |      | Left          | int  -> int  -> int  | 'Divides'
     Infix   | +      | Left          | int  -> int  -> int  | Addition
     Infix   | -      | Left          | int  -> int  -> int  | Subtraction
-    Infix   | =      | Left          | int  -> int  -> bool | Equality
-    Infix   | =/=    | Left          | int  -> int  -> bool | Inequality
-    Infix   | <      | Left          | int  -> int  -> bool | 'Less than'
-    Infix   | >      | Left          | int  -> int  -> bool | 'Greater than'
-    Infix   | <=     | Left          | int  -> int  -> bool | 'Less than or equal to'
-    Infix   | >=     | Left          | int  -> int  -> bool | 'Greater than or equal to'
+    Infix   | =      | None          | int  -> int  -> bool | Equality
+    Infix   | =/=    | None          | int  -> int  -> bool | Inequality
+    Infix   | <      | None          | int  -> int  -> bool | 'Less than'
+    Infix   | >      | None          | int  -> int  -> bool | 'Greater than'
+    Infix   | <=     | None          | int  -> int  -> bool | 'Less than or equal to'
+    Infix   | >=     | None          | int  -> int  -> bool | 'Greater than or equal to'
     Infix   | and    | Left          | bool -> bool -> bool | Conjunction (not short-circuiting)
     Infix   | or     | Left          | bool -> bool -> bool | Disjunction (not short-circuiting)

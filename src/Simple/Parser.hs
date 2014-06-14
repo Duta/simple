@@ -176,12 +176,12 @@ operators =
   , infixOp   "|"   (BinaryOp Divides) AssocLeft
   , infixOp   "+"   (BinaryOp Add)     AssocLeft
   , infixOp   "-"   (BinaryOp Sub)     AssocLeft
-  , infixOp   "="   (BinaryOp Eq)      AssocLeft
-  , infixOp   "=/=" (BinaryOp Ineq)    AssocLeft
-  , infixOp   "<"   (BinaryOp Lt)      AssocLeft
-  , infixOp   ">"   (BinaryOp Gt)      AssocLeft
-  , infixOp   "<="  (BinaryOp LtEq)    AssocLeft
-  , infixOp   ">="  (BinaryOp GtEq)    AssocLeft
+  , infixOp   "="   (BinaryOp Eq)      AssocNone
+  , infixOp   "=/=" (BinaryOp Ineq)    AssocNone
+  , infixOp   "<"   (BinaryOp Lt)      AssocNone
+  , infixOp   ">"   (BinaryOp Gt)      AssocNone
+  , infixOp   "<="  (BinaryOp LtEq)    AssocNone
+  , infixOp   ">="  (BinaryOp GtEq)    AssocNone
   , infixOp   "and" (BinaryOp And)     AssocLeft
   , infixOp   "or"  (BinaryOp Or)      AssocLeft
   ]
