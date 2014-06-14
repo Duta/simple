@@ -12,7 +12,6 @@ data Value
 
 data Instruction
   = Const Value
-  | ClearStack
   | Neg
   | Not
   | Add
@@ -107,35 +106,34 @@ exeWhile (_:_, _)             = typeError
 exeWhile _                    = stackUnderflowError
 
 exeIns :: Memory -> Instruction -> IO Memory
-exeIns (s, v)     (Const n)  = return (n:s, v)
-exeIns (_, v)     ClearStack = return ([], v)
-exeIns m          Neg        = unOpInt   m $ I . negate
-exeIns m          Not        = unOpBool  m $ B . not
-exeIns m          Add        = binOpInt  m $ \a b -> I (a + b)
-exeIns m          Sub        = binOpInt  m $ \a b -> I (a - b)
-exeIns m          Mul        = binOpInt  m $ \a b -> I (a * b)
-exeIns m          Div        = binOpInt  m $ \a b -> I (a `div` b)
-exeIns m          Mod        = binOpInt  m $ \a b -> I (a `mod` b)
-exeIns m          Exp        = binOpInt  m $ \a b -> I (a ^ b)
-exeIns m          Divides    = binOpInt  m $ \a b -> B (b `mod` a == 0)
-exeIns m          Eq         = binOpInt  m $ \a b -> B (a == b)
-exeIns m          Ineq       = binOpInt  m $ \a b -> B (a /= b)
-exeIns m          Lt         = binOpInt  m $ \a b -> B (a < b)
-exeIns m          Gt         = binOpInt  m $ \a b -> B (a > b)
-exeIns m          LtEq       = binOpInt  m $ \a b -> B (a <= b)
-exeIns m          GtEq       = binOpInt  m $ \a b -> B (a >= b)
-exeIns m          And        = binOpBool m $ \a b -> B (a && b)
-exeIns m          Or         = binOpBool m $ \a b -> B (a || b)
-exeIns (b:a:s, v) Flip       = return (a:b:s, v)
-exeIns _          Flip       = stackUnderflowError
-exeIns (n:s, v)   Print      = putStrLn (repr n) >> return (s, v)
-exeIns _          Print      = stackUnderflowError
-exeIns m          If         = exeIf m
-exeIns m          While      = exeWhile m
-exeIns (n:s, v)   (Store i)  = return (s, M.insert i n v)
-exeIns _          (Store i)  = stackUnderflowError
-exeIns (s, v)     (Load i)   = case M.lookup i v of
-  (Just n) -> return (n:s, v )
+exeIns (s, v)     (Const n) = return (n:s, v)
+exeIns m          Neg       = unOpInt   m $ I . negate
+exeIns m          Not       = unOpBool  m $ B . not
+exeIns m          Add       = binOpInt  m $ \a b -> I (a + b)
+exeIns m          Sub       = binOpInt  m $ \a b -> I (a - b)
+exeIns m          Mul       = binOpInt  m $ \a b -> I (a * b)
+exeIns m          Div       = binOpInt  m $ \a b -> I (a `div` b)
+exeIns m          Mod       = binOpInt  m $ \a b -> I (a `mod` b)
+exeIns m          Exp       = binOpInt  m $ \a b -> I (a ^ b)
+exeIns m          Divides   = binOpInt  m $ \a b -> B (b `mod` a == 0)
+exeIns m          Eq        = binOpInt  m $ \a b -> B (a == b)
+exeIns m          Ineq      = binOpInt  m $ \a b -> B (a /= b)
+exeIns m          Lt        = binOpInt  m $ \a b -> B (a < b)
+exeIns m          Gt        = binOpInt  m $ \a b -> B (a > b)
+exeIns m          LtEq      = binOpInt  m $ \a b -> B (a <= b)
+exeIns m          GtEq      = binOpInt  m $ \a b -> B (a >= b)
+exeIns m          And       = binOpBool m $ \a b -> B (a && b)
+exeIns m          Or        = binOpBool m $ \a b -> B (a || b)
+exeIns (b:a:s, v) Flip      = return (a:b:s, v)
+exeIns _          Flip      = stackUnderflowError
+exeIns (n:s, v)   Print     = putStrLn (repr n) >> return (s, v)
+exeIns _          Print     = stackUnderflowError
+exeIns m          If        = exeIf m
+exeIns m          While     = exeWhile m
+exeIns (n:s, v)   (Store i) = return (s, M.insert i n v)
+exeIns _          (Store i) = stackUnderflowError
+exeIns (s, v)     (Load i)  = case M.lookup i v of
+  (Just n) -> return (n:s, v)
   Nothing -> undefVarError i
 
 exeCode :: Memory -> Bytecode -> IO Memory

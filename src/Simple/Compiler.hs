@@ -1,5 +1,6 @@
 module Simple.Compiler where
 
+import qualified Data.Map                          as M
 import           Text.ParserCombinators.Parsec.Pos
 import           Simple.AST                        as AST
 import           Simple.Primitives
@@ -22,13 +23,15 @@ instance Compilable Stmt where
   compile (AST.If cond stmts p)      = compile $ IfElse cond stmts (Seq [] p) p
   compile (Init varType var expr p)  = compile $ Set var expr p
   compile (Decl varType var p)       = compile $ Set var (defaultExpr varType) p
-  compile (Expr expr _)              = compile expr ++ [ClearStack]
+  compile (Expr expr _)              = compile expr
+  compile (Return expr _)            = error $ "Implement return statement compilation"
 
 instance Compilable Expr where
   compile (Set var expr _)                = compile expr ++ [Store var, Load var]
-  compile (FuncCall func args _)          = if func == "print"
-    then concatMap compile args ++ [Print]
-    else error $ "Unknown function " ++ func
+  compile (FuncCall func args _)          = maybe
+                                            (error $ "Unknown function " ++ func)
+                                            ((concatMap compile args ++) . snd)
+                                            (M.lookup func primitiveFunctions)
   compile (Var var _)                     = [Load var]
   compile (IntLit int _)                  = [Const $ I int]
   compile (BoolLit bool _)                = [Const $ B bool]

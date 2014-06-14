@@ -55,6 +55,8 @@ languageDef = javaStyle
     , "or"  -- Disjunction
     -- Misc
     , ":="  -- Assignment
+    , "->"  -- Lambda
+    , ":"   -- 'Returns'
     ]
   }
 
@@ -94,6 +96,7 @@ statement = parens statement
         <|> forStatement
         <|> try ifElseStatement
         <|> ifStatement
+        <|> returnStatement
         <|> try initStatement
         <|> declStatement
         <|> basicStatement
@@ -151,11 +154,18 @@ basicStatement = annotate $ do
   semi
   return $ Expr expr
 
+returnStatement :: Parser Stmt
+returnStatement = annotate $ do
+  reserved "return"
+  expr <- optionMaybe expression
+  semi
+  return $ Return expr
+
 bracedStatements :: Parser Stmt
 bracedStatements = braces statements
 
 statements :: Parser Stmt
-statements = annotate $ liftM Seq $ many statement
+statements = annotate . liftM Seq $ many statement
 
 expression :: Parser Expr
 expression = buildExpressionParser operators terminals
@@ -199,12 +209,34 @@ operators =
 
 terminals :: Parser Expr
 terminals = parens expression
+        <|> lambda
         <|> try functionCall
         <|> try assignment
         <|> annotate (liftM BoolLit boolean)
         <|> annotate (liftM (IntLit . fromIntegral) integer)
         <|> annotate (liftM Var identifier)
         <?> "terminal expression"
+
+lambda :: Parser Expr
+lambda = annotate $ do
+  params <- commaSep param
+  reservedOp ":"
+  retType <- typeName
+  reservedOp "->"
+  body <- funcBody
+  let (types, names) = unzip params
+  return $ Lambda (FuncType types retType) names body
+
+param :: Parser (Type, Identifier)
+param = do
+  t <- typeName
+  n <- identifier
+  return (t, n)
+
+funcBody :: Parser FuncBody
+funcBody = (expression       >>= return . ExprBody)
+       <|> (bracedStatements >>= return . StmtBody)
+       <?> "function body"
 
 assignment :: Parser Expr
 assignment = annotate $ do
@@ -222,6 +254,8 @@ functionCall = annotate $ do
 typeName :: Parser Type
 typeName = (reserved "int"  >> return Int)
        <|> (reserved "bool" >> return Bool)
+       <|> (reserved "void" >> return Void)
+       <|> (reserved "func" >> return Func)
        <?> "type name"
 
 boolean :: Parser Bool
