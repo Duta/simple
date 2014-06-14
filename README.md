@@ -30,8 +30,8 @@ Current features:
  - For loops
  - Pre/post-dec/increment
  - Primitive functions
-    - func printInt  := int  n : void -> {/* Native code */}
-    - func printBool := bool b : void -> {/* Native code */}
+    - `func printInt  := int  n : void -> {/* Native code */}`
+    - `func printBool := bool b : void -> {/* Native code */}`
  - Various primitive operators
  - Default-value initialization
  - Typechecker
@@ -41,11 +41,10 @@ Current features:
 Partially implemented features:
 
  - Custom functions via lambda expressions
-
- [x] Parses
- [x] Typechecks
- [ ] Compiles
- [ ] Executes
+    - [x] Parses
+    - [x] Typechecks
+    - [ ] Compiles
+    - [ ] Executes
 
 Planned features:
 
