@@ -12,6 +12,6 @@ for int numPrimes := 0; numPrimes < 100; n++ {
 
     if isPrime {
         numPrimes++;
-        print(n);
+        printInt(n);
     }
 }

@@ -17,7 +17,7 @@ A Simple example:
 
         if isPrime {
             numPrimes++;
-            print(n);
+            printInt(n);
         }
     }
 
@@ -29,17 +29,27 @@ Current features:
  - While loops
  - For loops
  - Pre/post-dec/increment
- - Print function
+ - Primitive functions
+    - func printInt  := int  n : void -> {/* Native code */}
+    - func printBool := bool b : void -> {/* Native code */}
  - Various primitive operators
  - Default-value initialization
  - Typechecker
  - Compiles to a high-level bytecode
  - Stack-based bytecode interpreter
 
+Partially implemented features:
+
+ - Custom functions via lambda expressions
+    [x] Parses
+    [x] Typechecks
+    [ ] Compiles
+    [ ] Executes
+
 Planned features:
+
  - Array type
  - String type
- - Custom functions
  - More compilation-time checking
     - Check initialization before assignment
     - Scope checking
@@ -49,10 +59,12 @@ Planned features:
 
 Primitive types:
 
-    Name | Example | Description
-    -----+---------+--------------------------
-    int  | 42      | Bounded integer type
-    bool | true    | Boolean type (true/false)
+    Name | Default Value | Description
+    -----+---------------+------------
+    int  | 0             | Bounded integer type
+    bool | false         | Boolean type
+    void |               | Empty type. Can only be used as a return type
+    func |               | Type of lambda expressions (i.e. functions)
 
 Operators (in order of decreasing precedence):
 

@@ -24,7 +24,7 @@ instance Compilable Stmt where
   compile (Init varType var expr p)  = compile $ Set var expr p
   compile (Decl varType var p)       = compile $ Set var (defaultExpr varType) p
   compile (Expr expr _)              = compile expr
-  compile (Return expr _)            = error $ "Implement return statement compilation"
+  compile (Return expr _)            = error "Implement return statement compilation"
 
 instance Compilable Expr where
   compile (Set var expr _)                = compile expr ++ [Store var, Load var]
@@ -35,6 +35,7 @@ instance Compilable Expr where
   compile (Var var _)                     = [Load var]
   compile (IntLit int _)                  = [Const $ I int]
   compile (BoolLit bool _)                = [Const $ B bool]
+  compile (Lambda funcType params body p) = error "Implement lambda expression compilation"
   compile (UnaryOp PreDec _ (Var var _))  =
     [ Load var
     , Const (I 1)
