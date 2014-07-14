@@ -28,7 +28,6 @@ data Instruction
   | GtEq
   | And
   | Or
-  | Flip
   | Print
   | If
   | While
@@ -134,15 +133,13 @@ exeIns _   m          LtEq      = binOpInt  m $ \a b -> B (a <= b)
 exeIns _   m          GtEq      = binOpInt  m $ \a b -> B (a >= b)
 exeIns _   m          And       = binOpBool m $ \a b -> B (a && b)
 exeIns _   m          Or        = binOpBool m $ \a b -> B (a || b)
-exeIns _   (b:a:s, v) Flip      = return (a:b:s, v)
-exeIns _   _          Flip      = stackUnderflowError
 exeIns _   (n:s, v)   Print     = putStrLn (repr n) >> return (s, v)
 exeIns _   _          Print     = stackUnderflowError
 exeIns exe m          If        = exeIf    exe m
 exeIns exe m          While     = exeWhile exe m
 exeIns _   m          Exec      = exeExec m
 exeIns _   m          Return    = error "Return outside function call"
-exeIns _   (s, v)     RMStack   = return ([], v)
+exeIns _   (_, v)     RMStack   = return ([], v)
 exeIns _   (n:s, v)   (Store i) = return (s, M.insert i n v)
 exeIns _   _          (Store i) = stackUnderflowError
 exeIns _   (s, v)     (Load i)  = case M.lookup i v of
@@ -157,11 +154,3 @@ initialMem = ([], M.empty)
 
 execute :: Bytecode -> IO ()
 execute = void . exeCode initialMem
-
--- Takes two variable names and swaps their values.
-swap :: String -> String -> Bytecode
-swap a b = [
-  Load a,
-  Load b,
-  Store a,
-  Store b]
