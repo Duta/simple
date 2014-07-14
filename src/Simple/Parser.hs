@@ -6,6 +6,7 @@ import           Text.ParserCombinators.Parsec.Expr
 import           Text.ParserCombinators.Parsec.Language
 import qualified Text.ParserCombinators.Parsec.Token    as Token
 import           Simple.AST
+import           Simple.FullAST
 
 parseFile :: String -> IO Stmt
 parseFile file = do

@@ -2,7 +2,8 @@ module Simple.Compiler where
 
 import qualified Data.Map                          as M
 import           Text.ParserCombinators.Parsec.Pos
-import           Simple.AST                        as AST
+import           Simple.AST                        (Source(..))
+import           Simple.ReducedAST                 as AST
 import           Simple.Primitives
 import           Simple.VM                         as VM
 
@@ -10,56 +11,78 @@ class Compilable a where
   compile :: a -> Bytecode
 
 instance Compilable Stmt where
-  compile (Seq stmts _)              = concatMap compile stmts
-  compile (AST.While cond stmts _)   = [Const $ Code (compile stmts)]
-                                    ++ [Const $ Code (compile cond)]
-                                    ++ [VM.While]
-  compile (For ini cond inc stmts p) = compile ini
-                                    ++ compile (AST.While cond (Seq [stmts, Expr inc p] p) p)
-  compile (IfElse cond s1 s2 _)      = [Const $ Code (compile s1)]
-                                    ++ [Const $ Code (compile s2)]
-                                    ++ compile cond
-                                    ++ [VM.If]
-  compile (AST.If cond stmts p)      = compile $ IfElse cond stmts (Seq [] p) p
-  compile (Init varType var expr p)  = compile $ Set var expr p
-  compile (Decl varType var p)       = compile $ Set var (defaultExpr varType) p
-  compile (Expr expr _)              = compile expr
-  compile (Return expr _)            = error "Implement return statement compilation"
+  compile (Seq stmts _)              =
+    concatMap compile stmts
+  compile (AST.While cond stmts _)   =
+    [ Const . Code $ compile stmts
+    , Const . Code $ compile cond
+    , VM.While
+    ]
+  compile (For ini cond inc stmts p) =
+    compile ini ++
+    compile (AST.While cond (Seq [stmts, Expr inc p] p) p)
+  compile (IfElse cond s1 s2 _)      =
+    [ Const . Code $ compile s1
+    , Const . Code $ compile s2
+    ] ++
+    compile cond ++
+    [VM.If]
+  compile (Init varType var expr p)  =
+    compile expr ++
+    [Store var]
+  compile (Expr expr _)              =
+    compile expr ++
+    [RMStack]
+  compile (AST.Return expr _)            =
+    maybe [VM.Return] (\e -> compile e ++ [VM.Return]) expr
 
 instance Compilable Expr where
-  compile (Set var expr _)                = compile expr ++ [Store var, Load var]
-  compile (FuncCall func args _)          = maybe
-                                            (error $ "Unknown function " ++ func)
-                                            ((concatMap compile args ++) . snd)
-                                            (M.lookup func primitiveFunctions)
-  compile (Var var _)                     = [Load var]
-  compile (IntLit int _)                  = [Const $ I int]
-  compile (BoolLit bool _)                = [Const $ B bool]
-  compile (Lambda funcType params body p) = error "Implement lambda expression compilation"
+  compile (Set var expr _)                =
+    compile expr ++
+    [ Store var
+    , Load var
+    ]
+  compile (FuncCall func args _)          =
+    maybe -- TODO: Finish converting primitive functions to work like normal ones
+      (compiledArgs ++ [Load func, Exec])
+      (\(_,ps,bc) -> compiledArgs ++ [Const . Code $ map Store (reverse ps) ++ bc, Exec])
+      (M.lookup func primitiveFunctions)
+      where compiledArgs = concatMap compile args
+  compile (Var var _)                     =
+    [Load var]
+  compile (IntLit int _)                  =
+    [Const $ I int]
+  compile (BoolLit bool _)                =
+    [Const $ B bool]
+  compile (Lambda funcType params body p) =
+    [Const . Code $ map Store (reverse params) ++ compile body]
   compile (UnaryOp PreDec _ (Var var _))  =
     [ Load var
-    , Const (I 1)
+    , Const $ I 1
     , VM.Sub
     , Store var
     , Load var
     ]
-  compile (UnaryOp PreDec p _)            = incrementVarError True True $ Just p
+  compile (UnaryOp PreDec p _)            =
+    incrementVarError True True $ Just p
   compile (UnaryOp PostDec _ (Var var _)) =
     [ Load var
     , Load var
-    , Const (I 1)
+    , Const $ I 1
     , VM.Sub
     , Store var
     ]
-  compile (UnaryOp PostDec p _)           = incrementVarError False True $ Just p
+  compile (UnaryOp PostDec p _)           =
+    incrementVarError False True $ Just p
   compile (UnaryOp PreInc _ (Var var _))  =
     [ Load var
-    , Const (I 1)
+    , Const $ I 1
     , VM.Add
     , Store var
     , Load var
     ]
-  compile (UnaryOp PreInc p _)            = incrementVarError True False $ Just p
+  compile (UnaryOp PreInc p _)            =
+    incrementVarError True False $ Just p
   compile (UnaryOp PostInc _ (Var var _)) =
     [ Load var
     , Load var
@@ -67,9 +90,12 @@ instance Compilable Expr where
     , VM.Add
     , Store var
     ]
-  compile (UnaryOp PostInc p _)           = incrementVarError False False $ Just p
-  compile (UnaryOp op _ expr)             = compile expr ++ compile op
-  compile (BinaryOp op _ e1 e2)           = compile e1 ++ compile e2 ++ compile op
+  compile (UnaryOp PostInc p _)           =
+    incrementVarError False False $ Just p
+  compile (UnaryOp op _ expr)             =
+    compile expr ++ compile op
+  compile (BinaryOp op _ e1 e2)           =
+    compile e1 ++ compile e2 ++ compile op
 
 instance Compilable UnaryOp where
   compile AST.Neg     = [VM.Neg]
@@ -80,42 +106,48 @@ instance Compilable UnaryOp where
   compile AST.PostInc = incrementVarError False False Nothing
 
 instance Compilable BinaryOp where
-  compile AST.Add     = [VM.Add]
-  compile AST.Sub     = [VM.Sub]
-  compile AST.Mul     = [VM.Mul]
-  compile AST.Div     = [VM.Div]
-  compile AST.Mod     = [VM.Mod]
-  compile AST.Exp     = [VM.Exp]
-  compile AST.Divides = [VM.Divides]
-  compile AST.Eq      = [VM.Eq]
-  compile AST.Ineq    = [VM.Ineq]
-  compile AST.Lt      = [VM.Lt]
-  compile AST.Gt      = [VM.Gt]
-  compile AST.LtEq    = [VM.LtEq]
-  compile AST.GtEq    = [VM.GtEq]
-  compile AST.And     = [VM.And]
-  compile AST.Or      = [VM.Or]
+  compile AST.Add  = [VM.Add]
+  compile AST.Sub  = [VM.Sub]
+  compile AST.Mul  = [VM.Mul]
+  compile AST.Div  = [VM.Div]
+  compile AST.Mod  = [VM.Mod]
+  compile AST.Exp  = [VM.Exp]
+  compile AST.Eq   = [VM.Eq]
+  compile AST.Ineq = [VM.Ineq]
+  compile AST.Lt   = [VM.Lt]
+  compile AST.Gt   = [VM.Gt]
+  compile AST.LtEq = [VM.LtEq]
+  compile AST.GtEq = [VM.GtEq]
+  compile AST.And  = [VM.And]
+  compile AST.Or   = [VM.Or]
+
+instance Compilable FuncBody where
+  compile (StmtBody stmt) = compile stmt
+  compile (ExprBody expr) = compile expr
 
 compileError :: String -> Maybe Source -> a
 compileError msg p = error
-  $ showString "Compile error"
+  $ ss "Compile error"
   . maybe id
     ( \(Source start end) ->
-      showString " ("
-    . showString (sourceName start)
-    . showString " "
-    . shows (sourceLine start)
-    . showString ":"
-    . shows (sourceColumn start)
-    . showString "-"
-    . shows (sourceLine end)
-    . showString ":"
-    . shows (sourceColumn end)
-    . showString ")"
+      ss " ("
+    . ss (sourceName start)
+    . ss " "
+    . s  (sourceLine start)
+    . ss ":"
+    . s  (sourceColumn start)
+    . ss "-"
+    . s  (sourceLine end)
+    . ss ":"
+    . s  (sourceColumn end)
+    . ss ")"
     ) p
-  . showString ": "
-  . showString msg
+  . ss ": "
+  . ss msg
   $ ""
+  where
+    s  = shows
+    ss = showString
 
 incrementVarError :: Bool -> Bool -> Maybe Source -> a
 incrementVarError pre dec = compileError $

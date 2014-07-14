@@ -1,7 +1,7 @@
 module Simple.VM (Instruction(..), Value(..), Bytecode, execute) where
 
 import           Control.DeepSeq (NFData(..))
-import           Control.Monad (foldM, void)
+import           Control.Monad   (foldM, void)
 import qualified Data.Map as M
 
 data Value
@@ -20,7 +20,6 @@ data Instruction
   | Div
   | Mod
   | Exp
-  | Divides
   | Eq
   | Ineq
   | Lt
@@ -33,6 +32,9 @@ data Instruction
   | Print
   | If
   | While
+  | Exec
+  | Return
+  | RMStack
   | Store String
   | Load String
     deriving (Show, Eq, Read)
@@ -90,7 +92,7 @@ binOpBool _              op = stackUnderflowError
 
 exeIf :: Memory -> IO Memory
 exeIf (B b:Code c2:Code c1:s, v) = exeCode (s, v) (if b then c1 else c2)
-exeIf (_:_:_, _)                 = typeError
+exeIf m@(_:_:_, _)             = error $ "If -- " ++ show m
 exeIf _                          = stackUnderflowError
 
 exeWhile :: Memory -> IO Memory
@@ -98,12 +100,21 @@ exeWhile (Code e:Code c:s, v) = do
   m' <- exeCode ([], v) e
   case m' of
     ([B b], v') -> if b
-      then exeCode (s, v') c >>= (\(s', v'') -> exeWhile (Code e:Code c:s', v''))
+      then do
+        (s',v'') <- exeCode (s, v') c
+        exeWhile (Code e:Code c:s', v'')
       else return (s, v')
     (_:_, _)    -> typeError
     _           -> stackUnderflowError
-exeWhile (_:_, _)             = typeError
+exeWhile m@(_:_, _)           = error $ "While -- " ++ show m
 exeWhile _                    = stackUnderflowError
+
+exeExec :: Memory -> IO Memory
+exeExec (Code (Return:_):s, v) = return (s, v)
+exeExec (Code (i:c):s, v)      = exeIns (s, v) i >>= (\(s', v') -> exeExec (Code c:s', v'))
+exeExec (Code []:s, v)         = return (s, v)
+exeExec m@(_:_, _)             = error $ "Exec -- " ++ show m
+exeExec _                      = stackUnderflowError
 
 exeIns :: Memory -> Instruction -> IO Memory
 exeIns (s, v)     (Const n) = return (n:s, v)
@@ -115,7 +126,6 @@ exeIns m          Mul       = binOpInt  m $ \a b -> I (a * b)
 exeIns m          Div       = binOpInt  m $ \a b -> I (a `div` b)
 exeIns m          Mod       = binOpInt  m $ \a b -> I (a `mod` b)
 exeIns m          Exp       = binOpInt  m $ \a b -> I (a ^ b)
-exeIns m          Divides   = binOpInt  m $ \a b -> B (b `mod` a == 0)
 exeIns m          Eq        = binOpInt  m $ \a b -> B (a == b)
 exeIns m          Ineq      = binOpInt  m $ \a b -> B (a /= b)
 exeIns m          Lt        = binOpInt  m $ \a b -> B (a < b)
@@ -130,6 +140,9 @@ exeIns (n:s, v)   Print     = putStrLn (repr n) >> return (s, v)
 exeIns _          Print     = stackUnderflowError
 exeIns m          If        = exeIf m
 exeIns m          While     = exeWhile m
+exeIns m          Exec      = exeExec m
+exeIns m          Return    = error "Return outside function call"
+exeIns (s, v)     RMStack   = return ([], v)
 exeIns (n:s, v)   (Store i) = return (s, M.insert i n v)
 exeIns _          (Store i) = stackUnderflowError
 exeIns (s, v)     (Load i)  = case M.lookup i v of

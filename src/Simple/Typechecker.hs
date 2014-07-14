@@ -4,6 +4,7 @@ import           Data.List (intercalate)
 import qualified Data.Map                          as M
 import           Text.ParserCombinators.Parsec.Pos
 import           Simple.AST
+import           Simple.ReducedAST
 
 check :: Stmt -> Stmt
 check stmt
@@ -14,7 +15,8 @@ check stmt
                     . map repr
                     $ typeErrors
     where
-      typeErrors = errors $ typecheck M.empty Nothing stmt
+      noInfo = TypeInfo M.empty M.empty Nothing
+      typeErrors = errors $ typecheck noInfo stmt
       repr typeError
         = showString " - Expected: "
         . shows (expected typeError)
@@ -49,147 +51,150 @@ data TypeError
 instance HasSource TypeError where
   source = errSource
 
+type TypeMap    = M.Map Identifier Type
+type ReturnType = Maybe Type
+type FuncMap    = M.Map Identifier FuncType
+
+data TypeInfo
+  = TypeInfo
+  { varMap  :: TypeMap
+  , funcMap :: FuncMap
+  , retType :: ReturnType
+  } deriving (Show, Eq)
+
 data TypecheckResults = TypecheckResults
-                      { errors  :: [TypeError]
-                      , typeMap :: TypeMap
+                      { errors   :: [TypeError]
+                      , typeInfo :: TypeInfo
                       } deriving (Show, Eq)
 
-type ReturnType = Maybe Type
-
 class Typecheckable a where
-  typecheck :: TypeMap -> ReturnType -> a -> TypecheckResults
+  typecheck :: TypeInfo -> a -> TypecheckResults
 
 instance Typecheckable Stmt where
-  typecheck m r (Seq stmts p)              = foldl
-                                             (\(TypecheckResults errs m) stmt
-                                               -> let (TypecheckResults errs' m') = typecheck m r stmt
-                                               in TypecheckResults (errs ++ errs') m')
-                                             (TypecheckResults [] m)
-                                             stmts
-  typecheck m r (While cond stmts p)       = TypecheckResults
-                                           ( getTypecheckErrors m r cond
-                                          ++ getExpectedTypeErrors m r cond Bool
-                                          ++ getTypecheckErrors m r stmts
-                                           ) m
-  typecheck m r (For ini cond inc stmts p) = let m' = typeMap $ typecheck m r ini
-                                          in TypecheckResults
-                                           ( getTypecheckErrors m' r cond
-                                          ++ getExpectedTypeErrors m' r cond Bool
-                                          ++ getTypecheckErrors m' r inc
-                                          ++ getTypecheckErrors m' r stmts
-                                           ) m'
-  typecheck m r (IfElse cond s1 s2 p)      = TypecheckResults
-                                           ( getTypecheckErrors m r cond
-                                          ++ getExpectedTypeErrors m r cond Bool
-                                          ++ getTypecheckErrors m r s1
-                                          ++ getTypecheckErrors m r s2
-                                           ) m
-  typecheck m r (If cond stmts p)          = TypecheckResults
-                                           ( getTypecheckErrors m r cond
-                                          ++ getExpectedTypeErrors m r cond Bool
-                                          ++ getTypecheckErrors m r stmts
-                                           ) m
-  typecheck m r (Init varType var expr p)  = TypecheckResults 
-                                           ( getExpectedTypeErrors m r expr varType
-                                          ++ getTypecheckErrors m r expr
-                                           )$M.insert var varType m
-  typecheck m r (Decl varType var p)       = TypecheckResults []
-                                           $ M.insert var varType m
-  typecheck m r (Expr expr p)              = typecheck m r expr
-  typecheck m r (Return expr p)            = TypecheckResults
-                                           ( maybe [] (\retType -> maybe 
-                                               (getErrors $ ensureType p retType Void)
-                                               (\e -> getTypecheckErrors m r e ++ getExpectedTypeErrors m r e retType)
-                                               expr) r
-                                           ) m
-
---maybe
---  []
---  (\returnType ->
---    maybe 
---      (getErrors $ ensureType retExpr Void returnType)
---      (\e -> getTypecheckErrors m r e ++ getExpectedTypeErrors m r e returnType))
---      expr
---  r
+  typecheck i (Seq stmts p)              = foldl
+                                           (\(TypecheckResults errs i) stmt
+                                             -> let (TypecheckResults errs' i') = typecheck i stmt
+                                             in TypecheckResults (errs ++ errs') i')
+                                           (TypecheckResults [] i)
+                                           stmts
+  typecheck i (While cond stmts p)       = TypecheckResults
+                                         ( getTypecheckErrors i cond
+                                        ++ getExpectedTypeErrors i cond Bool
+                                        ++ getTypecheckErrors i stmts
+                                         ) i
+  typecheck i (For ini cond inc stmts p) = let m' = varMap . typeInfo $ typecheck i ini
+                                               i' = i {varMap = m'}
+                                        in TypecheckResults
+                                         ( getTypecheckErrors i' cond
+                                        ++ getExpectedTypeErrors i' cond Bool
+                                        ++ getTypecheckErrors i' inc
+                                        ++ getTypecheckErrors i' stmts
+                                         ) i'
+  typecheck i (IfElse cond s1 s2 p)      = TypecheckResults
+                                         ( getTypecheckErrors i cond
+                                        ++ getExpectedTypeErrors i cond Bool
+                                        ++ getTypecheckErrors i s1
+                                        ++ getTypecheckErrors i s2
+                                         ) i
+  typecheck i (Init varType var expr p)  = let funcType = getFuncType expr
+                                               noLambdaErrors = case funcType of Right _ -> True; _ -> False
+                                        in TypecheckResults 
+                                         ( getExpectedTypeErrors i expr varType
+                                        ++ getTypecheckErrors i expr
+                                        ++ case funcType of Right _ -> []; Left e -> e
+                                         )$i {varMap  = M.insert var varType $ varMap i
+                                             ,funcMap = if varType == Func && noLambdaErrors
+                                                        then let Right ft = funcType
+                                                          in (M.insert var ft $ funcMap i)
+                                                        else funcMap i}
+  typecheck i (Expr expr p)              = typecheck i expr
+  typecheck i (Return expr p)            = let r = retType i
+                                        in TypecheckResults
+                                         ( maybe [] (\retType -> maybe 
+                                             (getErrors $ ensureType p retType Void)
+                                             (\e -> getTypecheckErrors i e ++ getExpectedTypeErrors i e retType)
+                                             expr) r
+                                         ) i
 
 instance Typecheckable Expr where
-  typecheck m r (Set var expr p)                = TypecheckResults
-                                                ((maybe [] (getExpectedTypeErrors m r expr)
-                                                $ M.lookup var m)
-                                               ++ getTypecheckErrors m r expr
-                                                ) m
-  typecheck m r (FuncCall func args p)          = TypecheckResults [] m -- TODO
-  typecheck m r (Lambda funcType params body p) = let m' = foldl (\m (n,t) -> M.insert n t m) m (zip params $ paramTypes funcType)
+  typecheck i (Set var expr p)                = TypecheckResults
+                                                ((maybe [] (getExpectedTypeErrors i expr)
+                                                . M.lookup var $ varMap i)
+                                               ++ getTypecheckErrors i expr
+                                                ) i
+  typecheck i (FuncCall func args p)          = TypecheckResults
+                                                ( concatMap (getTypecheckErrors i) args
+                                            -- ++ -- TODO: Check arg types match
+                                                ) i
+  typecheck i (Lambda funcType params body p) = let m' = foldl (\m (n,t) -> M.insert n t m) (varMap i) . zip params $ paramTypes funcType
                                                in TypecheckResults
-                                                ( getTypecheckErrors m (Just $ retType funcType) body
-                                                ) m
-  typecheck m r expr@UnaryOp{}                  = TypecheckResults (getResolutionErrors m r expr) m
-  typecheck m r expr@BinaryOp{}                 = TypecheckResults (getResolutionErrors m r expr) m
-  typecheck m r _                               = TypecheckResults [] m
+                                                ( getTypecheckErrors (i {retType = Just $ funcRetType funcType}) body
+                                                ) $ i {varMap = m'}
+  typecheck i expr@UnaryOp{}                  = TypecheckResults (getResolutionErrors i expr) i
+  typecheck i expr@BinaryOp{}                 = TypecheckResults (getResolutionErrors i expr) i
+  typecheck i _                               = TypecheckResults [] i
 
 instance Typecheckable FuncBody where
-  typecheck m r (ExprBody expr) = typecheck m r expr
-  typecheck m r (StmtBody stmt) = typecheck m r stmt
+  typecheck i (ExprBody expr) = typecheck i expr
+  typecheck i (StmtBody stmt) = typecheck i stmt
 
-type ResolvedType = Either [TypeError] Type
+type Resolved a = Either [TypeError] a
 
-type TypeMap = M.Map Identifier Type
+getFuncType :: Expr -> Resolved FuncType
+getFuncType (Lambda t _ _ _) = return t
+getFuncType _                = Left []
 
-getErrors :: ResolvedType -> [TypeError]
+getErrors :: Resolved Type -> [TypeError]
 getErrors = either id $ const []
 
-getResolutionErrors :: TypeMap -> ReturnType -> Expr -> [TypeError]
-getResolutionErrors m r = getErrors . resolveType m r
+getResolutionErrors :: TypeInfo -> Expr -> [TypeError]
+getResolutionErrors i = getErrors . resolveType i
 
-getTypecheckErrors :: Typecheckable a => TypeMap -> ReturnType -> a -> [TypeError]
-getTypecheckErrors m r = errors . typecheck m r
+getTypecheckErrors :: Typecheckable a => TypeInfo -> a -> [TypeError]
+getTypecheckErrors i = errors . typecheck i
 
-getExpectedTypeErrors :: TypeMap -> ReturnType -> Expr -> Type -> [TypeError]
-getExpectedTypeErrors m r expr = getErrors . expectingType m r expr
+getExpectedTypeErrors :: TypeInfo -> Expr -> Type -> [TypeError]
+getExpectedTypeErrors i expr = getErrors . expectingType i expr
 
-ensureType :: Source -> Type -> Type -> ResolvedType
+ensureType :: Source -> Type -> Type -> Resolved Type
 ensureType p expected actual = if expected == actual
-  then Right expected
+  then return expected
   else Left [TypeError p expected actual]
 
-resolveType :: TypeMap -> ReturnType -> Expr -> ResolvedType
-resolveType m r (Set var expr p)                = maybe (Left []) Right
-                                                $ M.lookup var m
-resolveType m r (FuncCall func args p)          = Left -- TODO: Check arg types match param types
-                                                $ concatMap (getTypecheckErrors m r) args
-resolveType m r (Lambda funcType params body p) = Right Func
-resolveType m r (Var var p)                     = maybe (Left []) Right
-                                                $ M.lookup var m
-resolveType m r (IntLit int p)                  = Right Int
-resolveType m r (BoolLit bool p)                = Right Bool
-resolveType m r (UnaryOp op p expr)             = resolveUnaryOpType m r op expr
-resolveType m r (BinaryOp op p e1 e2)           = resolveBinaryOpType m r op e1 e2
+resolveType :: TypeInfo -> Expr -> Resolved Type
+resolveType i (Set var expr p)                = maybe (Left []) return . M.lookup var $ varMap i
+resolveType i (FuncCall func args p)          = maybe (Left []) (return . funcRetType) . M.lookup func $ funcMap i
+resolveType i (Lambda funcType params body p) = return Func
+resolveType i (Var var p)                     = maybe (Left []) return . M.lookup var $ varMap i
+resolveType i (IntLit int p)                  = return Int
+resolveType i (BoolLit bool p)                = return Bool
+resolveType i (UnaryOp op p expr)             = resolveUnaryOpType i op expr
+resolveType i (BinaryOp op p e1 e2)           = resolveBinaryOpType i op e1 e2
 
-expectingType :: TypeMap -> ReturnType -> Expr -> Type -> ResolvedType
-expectingType m r expr expected = resolveType m r expr >>= ensureType (source expr) expected
+expectingType :: TypeInfo -> Expr -> Type -> Resolved Type
+expectingType i expr expected = resolveType i expr >>= ensureType (source expr) expected
 
-resolveUnaryOpType :: TypeMap -> ReturnType -> UnaryOp -> Expr -> ResolvedType
-resolveUnaryOpType m r Neg     expr = expectingType m r expr Int
-resolveUnaryOpType m r Not     expr = expectingType m r expr Bool
-resolveUnaryOpType m r PreDec  expr = expectingType m r expr Int
-resolveUnaryOpType m r PostDec expr = expectingType m r expr Int
-resolveUnaryOpType m r PreInc  expr = expectingType m r expr Int
-resolveUnaryOpType m r PostInc expr = expectingType m r expr Int
+resolveUnaryOpType :: TypeInfo -> UnaryOp -> Expr -> Resolved Type
+resolveUnaryOpType i Neg     expr = expectingType i expr Int
+resolveUnaryOpType i Not     expr = expectingType i expr Bool
+resolveUnaryOpType i PreDec  expr = expectingType i expr Int
+resolveUnaryOpType i PostDec expr = expectingType i expr Int
+resolveUnaryOpType i PreInc  expr = expectingType i expr Int
+resolveUnaryOpType i PostInc expr = expectingType i expr Int
 
 -- TODO: If both expressions have type errors, concat the two lists
-resolveBinaryOpType :: TypeMap -> ReturnType -> BinaryOp -> Expr -> Expr -> ResolvedType
-resolveBinaryOpType m r Add     e1 e2 = expectingType m r e1 Int  >> expectingType m r e2 Int
-resolveBinaryOpType m r Sub     e1 e2 = expectingType m r e1 Int  >> expectingType m r e2 Int
-resolveBinaryOpType m r Mul     e1 e2 = expectingType m r e1 Int  >> expectingType m r e2 Int
-resolveBinaryOpType m r Div     e1 e2 = expectingType m r e1 Int  >> expectingType m r e2 Int
-resolveBinaryOpType m r Mod     e1 e2 = expectingType m r e1 Int  >> expectingType m r e2 Int
-resolveBinaryOpType m r Exp     e1 e2 = expectingType m r e1 Int  >> expectingType m r e2 Int
-resolveBinaryOpType m r Divides e1 e2 = expectingType m r e1 Int  >> expectingType m r e2 Int  >> return Bool
-resolveBinaryOpType m r Eq      e1 e2 = expectingType m r e1 Int  >> expectingType m r e2 Int  >> return Bool
-resolveBinaryOpType m r Ineq    e1 e2 = expectingType m r e1 Int  >> expectingType m r e2 Int  >> return Bool
-resolveBinaryOpType m r Lt      e1 e2 = expectingType m r e1 Int  >> expectingType m r e2 Int  >> return Bool
-resolveBinaryOpType m r Gt      e1 e2 = expectingType m r e1 Int  >> expectingType m r e2 Int  >> return Bool
-resolveBinaryOpType m r LtEq    e1 e2 = expectingType m r e1 Int  >> expectingType m r e2 Int  >> return Bool
-resolveBinaryOpType m r GtEq    e1 e2 = expectingType m r e1 Int  >> expectingType m r e2 Int  >> return Bool
-resolveBinaryOpType m r And     e1 e2 = expectingType m r e1 Bool >> expectingType m r e2 Bool
-resolveBinaryOpType m r Or      e1 e2 = expectingType m r e1 Bool >> expectingType m r e2 Bool
+resolveBinaryOpType :: TypeInfo -> BinaryOp -> Expr -> Expr -> Resolved Type
+resolveBinaryOpType i Add     e1 e2 = expectingType i e1 Int  >> expectingType i e2 Int
+resolveBinaryOpType i Sub     e1 e2 = expectingType i e1 Int  >> expectingType i e2 Int
+resolveBinaryOpType i Mul     e1 e2 = expectingType i e1 Int  >> expectingType i e2 Int
+resolveBinaryOpType i Div     e1 e2 = expectingType i e1 Int  >> expectingType i e2 Int
+resolveBinaryOpType i Mod     e1 e2 = expectingType i e1 Int  >> expectingType i e2 Int
+resolveBinaryOpType i Exp     e1 e2 = expectingType i e1 Int  >> expectingType i e2 Int
+resolveBinaryOpType i Eq      e1 e2 = expectingType i e1 Int  >> expectingType i e2 Int  >> return Bool
+resolveBinaryOpType i Ineq    e1 e2 = expectingType i e1 Int  >> expectingType i e2 Int  >> return Bool
+resolveBinaryOpType i Lt      e1 e2 = expectingType i e1 Int  >> expectingType i e2 Int  >> return Bool
+resolveBinaryOpType i Gt      e1 e2 = expectingType i e1 Int  >> expectingType i e2 Int  >> return Bool
+resolveBinaryOpType i LtEq    e1 e2 = expectingType i e1 Int  >> expectingType i e2 Int  >> return Bool
+resolveBinaryOpType i GtEq    e1 e2 = expectingType i e1 Int  >> expectingType i e2 Int  >> return Bool
+resolveBinaryOpType i And     e1 e2 = expectingType i e1 Bool >> expectingType i e2 Bool
+resolveBinaryOpType i Or      e1 e2 = expectingType i e1 Bool >> expectingType i e2 Bool

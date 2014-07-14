@@ -43,8 +43,8 @@ Partially implemented features:
  - Custom functions via lambda expressions
     - [x] Parses
     - [x] Typechecks
-    - [ ] Compiles
-    - [ ] Executes
+    - [x] Compiles
+    - [ ] Executes (nearly)
 
 Planned features:
 
