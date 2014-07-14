@@ -90,67 +90,67 @@ binOpBool (B b:B a:s, v) op = return (a `op` b:s, v)
 binOpBool (_:_:_, _)     op = typeError
 binOpBool _              op = stackUnderflowError
 
-exeIf :: Memory -> IO Memory
-exeIf (B b:Code c2:Code c1:s, v) = exeCode (s, v) (if b then c1 else c2)
-exeIf m@(_:_:_, _)             = error $ "If -- " ++ show m
-exeIf _                          = stackUnderflowError
+exeIf :: (Memory -> Bytecode -> IO Memory) -> Memory -> IO Memory
+exeIf exe (B b:Code c2:Code c1:s, v) = exe (s, v) $ if b then c1 else c2
+exeIf _   m@(_:_:_, _)               = error $ "If -- " ++ show m
+exeIf _   _                          = stackUnderflowError
 
-exeWhile :: Memory -> IO Memory
-exeWhile (Code e:Code c:s, v) = do
-  m' <- exeCode ([], v) e
+exeWhile :: (Memory -> Bytecode -> IO Memory) -> Memory -> IO Memory
+exeWhile exe (Code e:Code c:s, v) = do
+  m' <- exe ([], v) e
   case m' of
     ([B b], v') -> if b
       then do
-        (s',v'') <- exeCode (s, v') c
-        exeWhile (Code e:Code c:s', v'')
+        (s',v'') <- exe (s, v') c
+        exeWhile exe (Code e:Code c:s', v'')
       else return (s, v')
     (_:_, _)    -> typeError
     _           -> stackUnderflowError
-exeWhile m@(_:_, _)           = error $ "While -- " ++ show m
-exeWhile _                    = stackUnderflowError
+exeWhile _  m@(_:_, _)           = error $ "While -- " ++ show m
+exeWhile _  _                    = stackUnderflowError
 
 exeExec :: Memory -> IO Memory
 exeExec (Code (Return:_):s, v) = return (s, v)
-exeExec (Code (i:c):s, v)      = exeIns (s, v) i >>= (\(s', v') -> exeExec (Code c:s', v'))
+exeExec (Code (i:c):s, v)      = exeIns (\(s, v) c -> exeExec (Code c:s, v)) (s, v) i >>= (\(s', v') -> exeExec (Code c:s', v'))
 exeExec (Code []:s, v)         = return (s, v)
 exeExec m@(_:_, _)             = error $ "Exec -- " ++ show m
 exeExec _                      = stackUnderflowError
 
-exeIns :: Memory -> Instruction -> IO Memory
-exeIns (s, v)     (Const n) = return (n:s, v)
-exeIns m          Neg       = unOpInt   m $ I . negate
-exeIns m          Not       = unOpBool  m $ B . not
-exeIns m          Add       = binOpInt  m $ \a b -> I (a + b)
-exeIns m          Sub       = binOpInt  m $ \a b -> I (a - b)
-exeIns m          Mul       = binOpInt  m $ \a b -> I (a * b)
-exeIns m          Div       = binOpInt  m $ \a b -> I (a `div` b)
-exeIns m          Mod       = binOpInt  m $ \a b -> I (a `mod` b)
-exeIns m          Exp       = binOpInt  m $ \a b -> I (a ^ b)
-exeIns m          Eq        = binOpInt  m $ \a b -> B (a == b)
-exeIns m          Ineq      = binOpInt  m $ \a b -> B (a /= b)
-exeIns m          Lt        = binOpInt  m $ \a b -> B (a < b)
-exeIns m          Gt        = binOpInt  m $ \a b -> B (a > b)
-exeIns m          LtEq      = binOpInt  m $ \a b -> B (a <= b)
-exeIns m          GtEq      = binOpInt  m $ \a b -> B (a >= b)
-exeIns m          And       = binOpBool m $ \a b -> B (a && b)
-exeIns m          Or        = binOpBool m $ \a b -> B (a || b)
-exeIns (b:a:s, v) Flip      = return (a:b:s, v)
-exeIns _          Flip      = stackUnderflowError
-exeIns (n:s, v)   Print     = putStrLn (repr n) >> return (s, v)
-exeIns _          Print     = stackUnderflowError
-exeIns m          If        = exeIf m
-exeIns m          While     = exeWhile m
-exeIns m          Exec      = exeExec m
-exeIns m          Return    = error "Return outside function call"
-exeIns (s, v)     RMStack   = return ([], v)
-exeIns (n:s, v)   (Store i) = return (s, M.insert i n v)
-exeIns _          (Store i) = stackUnderflowError
-exeIns (s, v)     (Load i)  = case M.lookup i v of
+exeIns :: (Memory -> Bytecode -> IO Memory) -> Memory -> Instruction -> IO Memory
+exeIns _   (s, v)     (Const n) = return (n:s, v)
+exeIns _   m          Neg       = unOpInt   m $ I . negate
+exeIns _   m          Not       = unOpBool  m $ B . not
+exeIns _   m          Add       = binOpInt  m $ \a b -> I (a + b)
+exeIns _   m          Sub       = binOpInt  m $ \a b -> I (a - b)
+exeIns _   m          Mul       = binOpInt  m $ \a b -> I (a * b)
+exeIns _   m          Div       = binOpInt  m $ \a b -> I (a `div` b)
+exeIns _   m          Mod       = binOpInt  m $ \a b -> I (a `mod` b)
+exeIns _   m          Exp       = binOpInt  m $ \a b -> I (a ^ b)
+exeIns _   m          Eq        = binOpInt  m $ \a b -> B (a == b)
+exeIns _   m          Ineq      = binOpInt  m $ \a b -> B (a /= b)
+exeIns _   m          Lt        = binOpInt  m $ \a b -> B (a < b)
+exeIns _   m          Gt        = binOpInt  m $ \a b -> B (a > b)
+exeIns _   m          LtEq      = binOpInt  m $ \a b -> B (a <= b)
+exeIns _   m          GtEq      = binOpInt  m $ \a b -> B (a >= b)
+exeIns _   m          And       = binOpBool m $ \a b -> B (a && b)
+exeIns _   m          Or        = binOpBool m $ \a b -> B (a || b)
+exeIns _   (b:a:s, v) Flip      = return (a:b:s, v)
+exeIns _   _          Flip      = stackUnderflowError
+exeIns _   (n:s, v)   Print     = putStrLn (repr n) >> return (s, v)
+exeIns _   _          Print     = stackUnderflowError
+exeIns exe m          If        = exeIf    exe m
+exeIns exe m          While     = exeWhile exe m
+exeIns _   m          Exec      = exeExec m
+exeIns _   m          Return    = error "Return outside function call"
+exeIns _   (s, v)     RMStack   = return ([], v)
+exeIns _   (n:s, v)   (Store i) = return (s, M.insert i n v)
+exeIns _   _          (Store i) = stackUnderflowError
+exeIns _   (s, v)     (Load i)  = case M.lookup i v of
   (Just n) -> return (n:s, v)
   Nothing -> undefVarError i
 
 exeCode :: Memory -> Bytecode -> IO Memory
-exeCode = foldM exeIns
+exeCode = foldM $ exeIns exeCode
 
 initialMem :: Memory
 initialMem = ([], M.empty)
