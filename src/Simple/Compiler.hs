@@ -33,8 +33,9 @@ instance Compilable Stmt where
   compile (Expr expr _)              =
     compile expr ++
     [RMStack]
-  compile (AST.Return expr _)            =
-    maybe [VM.Return] (\e -> compile e ++ [VM.Return]) expr
+  compile (AST.Return expr _)        =
+    maybe [] compile expr ++
+    [VM.Return]
 
 instance Compilable Expr where
   compile (Set var expr _)                =
