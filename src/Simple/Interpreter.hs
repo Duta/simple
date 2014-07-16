@@ -40,7 +40,6 @@ evalStmt (While cond stmts p) = do
     B True -> evalStmt stmts >> evalStmt (While cond stmts p)
     B False -> return Null
     _ -> err p "Non-boolean value in while loop"
-evalStmt (For ini cond inc stmts p) = undefined
 evalStmt (IfElse cond s1 s2 p) = do
   v <- evalExpr cond
   case v of
@@ -192,7 +191,7 @@ exeIns _   m          Or        = binOpBool m $ \a b -> B (a || b)
 -}
 
 runFunction :: FuncCall -> InterpreterState Val
-runFunction (ps, as, body) = undefined
+runFunction (ps, as, body) = error "Function calls are not implemented"
 
 pushScope :: InterpreterState ()
 pushScope = modify (M.empty:)

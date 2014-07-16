@@ -5,7 +5,6 @@ import           Simple.AST
 data Stmt
   = Seq    [Stmt]                            Source
   | While  Expr         Stmt                 Source
-  | For    Stmt         Expr       Expr Stmt Source
   | IfElse Expr         Stmt       Stmt      Source
   | Init   Type         Identifier Expr      Source
   | Expr   Expr                              Source

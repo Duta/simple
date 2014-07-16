@@ -18,9 +18,6 @@ instance Compilable Stmt where
     , Const . Code $ compile cond
     , VM.While
     ]
-  compile (For ini cond inc stmts p) =
-    compile ini ++
-    compile (AST.While cond (Seq [stmts, Expr inc p] p) p)
   compile (IfElse cond s1 s2 _)      =
     [ Const . Code $ compile s1
     , Const . Code $ compile s2

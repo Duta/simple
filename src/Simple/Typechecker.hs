@@ -82,14 +82,6 @@ instance Typecheckable Stmt where
                                         ++ getExpectedTypeErrors i cond Bool
                                         ++ getTypecheckErrors i stmts
                                          ) i
-  typecheck i (For ini cond inc stmts p) = let m' = varMap . typeInfo $ typecheck i ini
-                                               i' = i {varMap = m'}
-                                        in TypecheckResults
-                                         ( getTypecheckErrors i' cond
-                                        ++ getExpectedTypeErrors i' cond Bool
-                                        ++ getTypecheckErrors i' inc
-                                        ++ getTypecheckErrors i' stmts
-                                         ) i'
   typecheck i (IfElse cond s1 s2 p)      = TypecheckResults
                                          ( getTypecheckErrors i cond
                                         ++ getExpectedTypeErrors i cond Bool

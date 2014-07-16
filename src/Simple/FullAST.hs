@@ -80,7 +80,7 @@ instance HasSource Expr where
 reduceStmt :: Stmt -> R.Stmt
 reduceStmt (Seq    stmts                        p) = R.Seq    (map reduceStmt stmts) p
 reduceStmt (While  cond     stmts               p) = R.While  (reduceExpr cond) (reduceStmt stmts) p
-reduceStmt (For    ini      cond  inc  stmts    p) = R.For    (reduceStmt ini) (reduceExpr cond) (reduceExpr inc) (reduceStmt stmts) p
+reduceStmt (For    ini      cond  inc  stmts    p) = R.Seq [reduceStmt ini, R.While (reduceExpr cond) (reduceStmt (Seq [stmts, Expr inc p] p)) p] p
 reduceStmt (IfElse cond     s1    s2            p) = R.IfElse (reduceExpr cond) (reduceStmt s1) (reduceStmt s2) p
 reduceStmt (If     cond     stmt                p) = R.IfElse (reduceExpr cond) (reduceStmt stmt) (R.Seq [] p) p
 reduceStmt (Decl   varType  var                 p) = R.Init   varType var (defaultExpr varType) p
